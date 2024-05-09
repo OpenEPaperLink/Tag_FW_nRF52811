@@ -1,0 +1,6 @@
+[submodule "Shared_Tag_CPP_Libraries"]
+	path = common
+	url = git@github.com:OpenEPaperLink/Shared_Tag_CPP_Libraries.git
+[submodule "Shared_OEPL_Definitions"]
+	path = shared
+	url = git@github.com:OpenEPaperLink/Shared_OEPL_Definitions.git
