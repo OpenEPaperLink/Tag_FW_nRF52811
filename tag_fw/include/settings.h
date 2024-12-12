@@ -3,11 +3,11 @@
 
 #include <stdint.h>
 
-#define FW_VERSION 0x0028        // version number (max 2.5.5 :) )
-#define FW_VERSION_SUFFIX "BUGF"  // suffix, like RC1 or whatever.
+#define FW_VERSION 0x0029        // version number (max 2.5.5 :) )
+#define FW_VERSION_SUFFIX "ARIA"  // suffix, like RC1 or whatever.
 #endif
 
-//#define DEBUGBLOCKS                 // uncomment to enable extra debug information on the block transfers
+// #define DEBUGBLOCKS                 // uncomment to enable extra debug information on the block transfers
 // #define DEBUG_SHOW_TAGINFO
 // #define DEBUG_DRAWING
 // #define DEBUG_EPD

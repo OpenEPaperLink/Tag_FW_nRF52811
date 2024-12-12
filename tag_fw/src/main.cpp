@@ -481,6 +481,21 @@ void loop() {
     powerUp(INIT_VOLTREADING);
     powerUp(INIT_TEMPREADING);
 
+    switch (tagSettings.customMode) {
+        case TAG_CUSTOM_MODE_WAIT_RFWAKE:
+        case TAG_CUSTOM_SLIDESHOW_FAST:
+        case TAG_CUSTOM_SLIDESHOW_MEDIUM:
+        case TAG_CUSTOM_SLIDESHOW_SLOW:
+        case TAG_CUSTOM_SLIDESHOW_GLACIAL:
+            powerUp(INIT_EEPROM);
+            writeSettings();
+            powerDown(INIT_EEPROM);
+            TagSlideShow();
+            break;
+        default:
+            break;
+    }
+
     if (tagSettings.enableFastBoot) {
         // fast boot
         if (tagSettings.fixedChannel) {
