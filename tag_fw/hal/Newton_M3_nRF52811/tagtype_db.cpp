@@ -79,7 +79,7 @@ void identifyTagInfo() {
     uint8_t capabilities[2];
     capabilities[0] = getUICRByte(0x12);
     capabilities[1] = getUICRByte(0x13);
-    tag.solumType = getUICRByte(0x16);
+    tag.solumType = getUICRByte(0x16); // TODO PICK UP HERE
     tag.thirdColor = getUICRByte(0x0A);
 
     switch (controllerType) {
@@ -133,6 +133,7 @@ void identifyTagInfo() {
     printf("TagType report:\n");
     printf("Resolution: %d*%d Px\n", epd->Xres, epd->Yres);
     printf("Nb of buttons: %d\n", tag.buttonCount);
+    printf("SolumType: %d\n", tag.solumType);
     if (tag.hasLED) {
         printf("This tag have a led: Yes\n");
     } else {
@@ -241,6 +242,11 @@ void identifyTagInfo() {
             epd->drawDirectionRight = true;
             tag.OEPLtype = SOLUM_M3_BWR_97;
             break;
+	case STYPE_SIZE_027: ///// MY display
+	    tag.macSuffix = 0x0000;
+	    epd->drawDirectionRight = true;
+	    tag.OEPLtype = SOLUM_M3_BWR_27; // TODO THIS
+	    break;
         case STYPE_SIZE_013:
             // epdXRes -= 1;
             tag.ledInverted = true;
