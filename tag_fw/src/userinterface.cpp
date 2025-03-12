@@ -407,7 +407,7 @@ void showAPFound() {
             fr.epdPrintf(10, epd->Yres - 25, 0, rotation::ROTATE_0, "MAC: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
             addQR(epd->Xres - 66, 47, 3, 2, "https://openepaperlink.eu/tag/1/%02X/%02X%02X%02X%02X%02X%02X%02X%02X/", tag.OEPLtype, mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
             break;
-	case STYPE_SIZE_027: // TODO: FROM 2.9 might not fit
+	case STYPE_SIZE_027:
            fr.setFont(&FreeSansBold18pt7b);
             fr.epdPrintf(7, 7, COLOR_BLACK, rotation::ROTATE_0, "AP Found");
             fr.setFont(&FreeSans9pt7b);
@@ -548,7 +548,7 @@ void showNoAP() {
             addFlashImage(200, 128, COLOR_BLACK, rotation::ROTATE_0, pandablack);
             addFlashImage(312, 274, COLOR_RED, rotation::ROTATE_0, pandared);
             break;
-	 case STYPE_SIZE_027: // TODO: Taken from 2.6
+	 case STYPE_SIZE_027:
             fr.setFont(&FreeSansBold18pt7b);
             fr.epdPrintf(7, 7, COLOR_BLACK, rotation::ROTATE_0, "No AP Found");
             fr.setFont(&FreeSans9pt7b);
