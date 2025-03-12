@@ -23,8 +23,6 @@ void identifyTagInfo() {
     /*
     00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10 11 12 13 14 15 16 17 18 19 1A 1B 1C 1D 1E 1F
 
-    92 64 1D 05 15 06 12 04 00 0D 01 2C 01 C8 00 38 00 07 81 9D 00 00 44 FF FF FF FF FF FF FF FF FF		2.7 ? (buttons, leds, BWR) with 300x200px
-
     93 47 2E 06 16 01 15 04 00 11 01 58 02 C0 01 04 00 03 81 9D 00 00 48 FF FF FF FF FF FF FF FF FF     6.0 UC8159
     62 65 F6 06 16 07 04 04 00 0E 01 0A 02 98 00 38 00 07 01 9C 00 00 47 03 68 00 00 00 00 00 00 00		4.3 UCvar43 (no buttons)
     E0 5F F6 06 16 07 04 04 00 0E 01 0A 02 98 00 38 00 07 01 9C 00 00 47 03 68 00 00 00 00 00 00 00		4.3 UCvar43 (no buttons)
@@ -41,6 +39,7 @@ void identifyTagInfo() {
     CA FE BA DE 15 0B 12 04 00 10 01 E0 01 20 03 39 00 03 81 9D 00 00 4C FF FF FF FF FF FF FF FF FF		7.4 UC8179
     F3 22 BC 05 15 0A 0D 04 00 19 01 A0 02 C0 03 38 07 07 01 80 00 00 64 FF FF FF FF FF FF FF FF FF		9.7 SSD
     AD BA FE CA 15 0A 1B 04 00 19 01 A0 02 C0 03 38 07 07 01 80 00 00 64 FF FF FF FF FF FF FF FF FF		9.7 type 2
+        92 64 1D 05 15 06 12 04 00 0D 01 2C 01 C8 00 38 00 07 81 9D 00 00 44 FF FF FF FF FF FF FF FF FF		2.7 ? (buttons, leds, BWR) 
     92 C3 80 05 15 08 19 04 00 12 01 18 03 10 01 04 07 07 01 80 00 00 63 FF FF FF FF FF FF FF FF FF     5.85 BWR
     22 F0 BF 05 15 0A 14 04 00 12 00 18 03 10 01 04 07 07 01 80 00 00 24 FF FF FF FF FF FF FF FF FF     5.85 BW
     99 78 B1 05 15 0A 06 04 00 0D 01 68 01 B8 00 38 07 07 01 80 00 00 43 FF FF FF FF FF FF FF FF FF     2.6"
@@ -79,7 +78,7 @@ void identifyTagInfo() {
     uint8_t capabilities[2];
     capabilities[0] = getUICRByte(0x12);
     capabilities[1] = getUICRByte(0x13);
-    tag.solumType = getUICRByte(0x16); // TODO PICK UP HERE
+    tag.solumType = getUICRByte(0x16);
     tag.thirdColor = getUICRByte(0x0A);
 
     switch (controllerType) {
@@ -133,7 +132,6 @@ void identifyTagInfo() {
     printf("TagType report:\n");
     printf("Resolution: %d*%d Px\n", epd->Xres, epd->Yres);
     printf("Nb of buttons: %d\n", tag.buttonCount);
-    printf("SolumType: %d\n", tag.solumType);
     if (tag.hasLED) {
         printf("This tag have a led: Yes\n");
     } else {
@@ -242,10 +240,10 @@ void identifyTagInfo() {
             epd->drawDirectionRight = true;
             tag.OEPLtype = SOLUM_M3_BWR_97;
             break;
-	case STYPE_SIZE_027: ///// MY display
+	case STYPE_SIZE_027:
 	    tag.macSuffix = 0x0000;
 	    epd->drawDirectionRight = true;
-	    tag.OEPLtype = SOLUM_M3_BWR_27; // TODO THIS
+	    tag.OEPLtype = SOLUM_M3_BWR_27;
 	    break;
         case STYPE_SIZE_013:
             // epdXRes -= 1;
