@@ -66,6 +66,9 @@ void unissd::epdEnterSleep() {
     epdWrite(CMD_ENTER_SLEEP, 1, 0x03);
 }
 void unissd::epdSetup() {
+    #ifdef DEBUG_EPD
+    printf("Starting EPD Setup\n");
+    #endif
     epdReset();
     epdWrite(CMD_SOFT_RESET, 0);
     delay(10);
@@ -94,19 +97,21 @@ void unissd::epdSetup() {
             }
             break;
         case 0x19:
+        case 0x0A:
             // stock init 9.7"
             epdWrite(0x46, 1, 0xF7);
             delay(15);
             epdWrite(0x47, 1, 0xF7);
             delay(15);
-            epdWrite(0x0C, 5, 0xAE, 0xC7, 0xC3, 0xC0, 0x80);
-            epdWrite(0x01, 3, 0x9F, 0x02, 0x00);
-            epdWrite(0x11, 1, 0x02);
-            epdWrite(0x44, 4, 0xBF, 0x03, 0x00, 0x00);
-            epdWrite(0x45, 4, 0x00, 0x00, 0x9F, 0x02);
-            epdWrite(0x3C, 1, 0x01);
-            epdWrite(0x18, 1, 0x80);
-            epdWrite(0x22, 1, 0xF7);
+            epdWrite(CMD_SOFT_START_CTRL, 5, 0xAE, 0xC7, 0xC3, 0xC0, 0x80);
+            epdWrite(CMD_DRV_OUTPUT_CTRL, 3, 0x9F, 0x02, 0x00);
+            //epdWrite(CMD_DRV_OUTPUT_CTRL, 3, 0x2E, 0x02, 0x00);
+            epdWrite(CMD_DATA_ENTRY_MODE, 1, 0x02);
+            epdWrite(CMD_WINDOW_X_SIZE, 4, 0xBF, 0x03, 0x00, 0x00);
+            epdWrite(CMD_WINDOW_Y_SIZE, 4, 0x00, 0x00, 0x7F, 0x02);
+            epdWrite(CMD_BORDER_WAVEFORM_CTRL, 1, 0x01);
+            epdWrite(CMD_TEMP_SENSOR_CONTROL, 1, 0x80);
+            epdWrite(CMD_DISP_UPDATE_CTRL2, 1, 0xF7);
             // end stock init
             // added
             epdWrite(CMD_DISP_UPDATE_CTRL, 2, 0x08, 0x00);  // fix reversed image with stock setup
@@ -134,6 +139,7 @@ void unissd::epdWriteDisplayData() {
                 }
                 break;
             case 0x19:
+            case 0x0A:
                 epdWrite(CMD_XSTART_POS, 2, 0xBF, 0x03);
                 epdWrite(CMD_YSTART_POS, 2, 0x00, 0x00);
                 break;
@@ -194,12 +200,24 @@ void unissd::epdWriteDisplayData() {
 void unissd::draw() {
     drawNoWait();
     getVoltage();
-    epdBusyWaitFalling(120000);
+    #ifdef DEBUG_EPD
+    printf("EPD: Waiting for draw to finish...\n");
+    #endif
+    epdWaitRdy();
+    #ifdef DEBUG_EPD
+    printf("EPD: Draw finished\n");
+    #endif
 }
 void unissd::drawNoWait() {
+    #ifdef DEBUG_EPD
+    printf("EPD: Starting to send image data\n");
+    #endif
     epdWriteDisplayData();
     epdWrite(CMD_DISP_UPDATE_CTRL2, 1, 0xF7);
     epdWrite(CMD_ACTIVATION, 0);
+    #ifdef DEBUG_EPD
+    printf("EPD: Send Data End\n");
+    #endif
 }
 void unissd::epdWaitRdy() {
     epdBusyWaitFalling(120000);
