@@ -39,6 +39,7 @@ void identifyTagInfo() {
     CA FE BA DE 15 0B 12 04 00 10 01 E0 01 20 03 39 00 03 81 9D 00 00 4C FF FF FF FF FF FF FF FF FF		7.4 UC8179
     F3 22 BC 05 15 0A 0D 04 00 19 01 A0 02 C0 03 38 07 07 01 80 00 00 64 FF FF FF FF FF FF FF FF FF		9.7 SSD
     AD BA FE CA 15 0A 1B 04 00 19 01 A0 02 C0 03 38 07 07 01 80 00 00 64 FF FF FF FF FF FF FF FF FF		9.7 type 2
+        92 64 1D 05 15 06 12 04 00 0D 01 2C 01 C8 00 38 00 07 81 9D 00 00 44 FF FF FF FF FF FF FF FF FF		2.7 ? (buttons, leds, BWR)
     92 C3 80 05 15 08 19 04 00 12 01 18 03 10 01 04 07 07 01 80 00 00 63 FF FF FF FF FF FF FF FF FF     5.85 BWR
     22 F0 BF 05 15 0A 14 04 00 12 00 18 03 10 01 04 07 07 01 80 00 00 24 FF FF FF FF FF FF FF FF FF     5.85 BW
     99 78 B1 05 15 0A 06 04 00 0D 01 68 01 B8 00 38 07 07 01 80 00 00 43 FF FF FF FF FF FF FF FF FF     2.6"
@@ -46,7 +47,8 @@ void identifyTagInfo() {
     2F A5 03 06 15 0C 07 04 00 15 00 80 01 A8 00 38 00 07 81 1D 00 00 4E FF FF FF FF FF FF FF FF FF     2.9" BW
     31 50 53 06 16 02 19 04 00 12 01 C8 00 C8 00 04 00 07 01 9C 00 00 40 FF FF FF FF FF FF FF FF FF
     4B F3 DE 04 15 05 07 04 00 0F 01 C8 00 90 00 38 00 07 01 19 00 00 4D FF FF FF FF FF FF FF FF FF     1.3-peghook
-
+    C1 D3 42 06 16 02 0A 04 00 0A 01 80 02 C0 03 38 00 03 81 9D 00 00 4A FF FF FF FF FF FF FF FF FF     11.6" BWR
+    04 5A 1F 05 15 06 12 04 00 0D 01 2C 01 C8 00 38 00 07 81 9D 00 00 44 FF FF FF FF FF FF FF FF FF     2.7" BWR
 ---|----MAC----|--------------|--|SC|X----|Y----|--------|B1|--------|TY|
 
 
@@ -121,10 +123,14 @@ void identifyTagInfo() {
     epd->XOffset = 0;
     epd->YOffset = 0;
 
-    if (capabilities[0] & 0x80) tag.buttonCount++;
-    if (capabilities[1] & 0x01) tag.buttonCount++;
-    if (capabilities[1] & 0x10) tag.hasLED = true;
-    if (capabilities[0] & 0x01) tag.hasNFC = true;
+    if (capabilities[0] & 0x80)
+        tag.buttonCount++;
+    if (capabilities[1] & 0x01)
+        tag.buttonCount++;
+    if (capabilities[1] & 0x10)
+        tag.hasLED = true;
+    if (capabilities[0] & 0x01)
+        tag.hasNFC = true;
 
 #ifdef DEBUG_SHOW_TAGINFO
 
@@ -245,6 +251,11 @@ void identifyTagInfo() {
             epd->drawDirectionRight = true;
             tag.OEPLtype = SOLUM_M3_BWR_97;
             break;
+        case STYPE_SIZE_027:
+            tag.macSuffix = 0xB490;
+            epd->drawDirectionRight = true;
+            tag.OEPLtype = SOLUM_M3_BWR_27;
+            break;
         case STYPE_SIZE_013:
             // epdXRes -= 1;
             tag.ledInverted = true;
@@ -258,6 +269,11 @@ void identifyTagInfo() {
             break;
         case STYPE_SIZE_116:
             tag.macSuffix = 0xBA90;
+            epd->drawDirectionRight = true;
+            tag.OEPLtype = SOLUM_M3_BWR_116;
+            break;
+        case STYPE_SIZE_116B:
+            tag.macSuffix = 0xBA9B;
             epd->drawDirectionRight = true;
             tag.OEPLtype = SOLUM_M3_BWR_116;
             break;

@@ -203,15 +203,32 @@ void showSplashScreen() {
             addQR(100, 160, 3, 7, "https://openepaperlink.eu/tag/0/%02X/%02X%02X%02X%02X%02X%02X%02X%02X/", tag.OEPLtype, mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
             break;
         case STYPE_SIZE_097:
+        case STYPE_SIZE_116B:
+        case STYPE_SIZE_116:
             fr.setFont(&FreeSansBold24pt7b);
             fr.epdPrintf(10, 10, COLOR_BLACK, rotation::ROTATE_0, "OpenEPaperLink");
             fr.setFont(&FreeSansBold18pt7b);
-            fr.epdPrintf(15, 60, COLOR_RED, rotation::ROTATE_0, "Newton M3 9.7\"");
+            if (tag.solumType == STYPE_SIZE_116B) {
+                fr.epdPrintf(15, 60, COLOR_RED, rotation::ROTATE_0, "Newton M3 11.6\"");
+            } else {
+                fr.epdPrintf(15, 60, COLOR_RED, rotation::ROTATE_0, "Newton M3 9.7\"");
+            }
             fr.setFont(&FreeSans9pt7b);
             fr.epdPrintf(epd->Xres - 37, 310, 0, rotation::ROTATE_270, "FW: %04X-%s", fwVersion, fwVersionSuffix);
             fr.epdPrintf(10, epd->Yres - 25, 0, rotation::ROTATE_0, "MAC: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
             addFlashImage(220, 420, COLOR_BLACK, rotation::ROTATE_0, newton);
             addQR(260, 160, 3, 7, "https://openepaperlink.eu/tag/0/%02X/%02X%02X%02X%02X%02X%02X%02X%02X/", tag.OEPLtype, mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
+            break;
+        case STYPE_SIZE_027:
+            fr.setFont(&FreeSansBold18pt7b);
+            fr.epdPrintf(5, 5, COLOR_BLACK, rotation::ROTATE_0, "OpenEPaperLink");
+            fr.setFont(&FreeSansBold18pt7b);
+            fr.epdPrintf(15, 40, COLOR_RED, rotation::ROTATE_0, "Newton M3 2.7\"");
+            fr.setFont(&FreeSans9pt7b);
+            fr.epdPrintf(epd->Xres - 20, 110, 0, rotation::ROTATE_270, "FW: %04X-%s", fwVersion, fwVersionSuffix);
+            fr.epdPrintf(5, epd->Yres - 20, 0, rotation::ROTATE_0, "MAC: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
+            //  addFlashImage(10, 10, COLOR_BLACK, rotation::ROTATE_0, newton);
+            addQR(100, 120, 3, 2, "https://openepaperlink.eu/tag/0/%02X/%02X%02X%02X%02X%02X%02X%02X%02X/", tag.OEPLtype, mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
             break;
     }
 #ifdef DEBUG_BUILD
@@ -247,8 +264,8 @@ void showScanningWindow() {
     resultcounter = 0;
 }
 
-void uiPrintBatteryVoltage(fontrender* fr, uint16_t x, uint16_t y) {
-    fr->epdPrintf(x, y, 0, rotation::ROTATE_0, "Battery: %d.%02dV Temp: %d'C", batteryVoltage / 1000, (batteryVoltage % 1000)/10, temperature);
+void uiPrintBatteryVoltage(fontrender *fr, uint16_t x, uint16_t y) {
+    fr->epdPrintf(x, y, 0, rotation::ROTATE_0, "Battery: %d.%02dV Temp: %d'C", batteryVoltage / 1000, (batteryVoltage % 1000) / 10, temperature);
 }
 
 void showAPFound() {
@@ -402,6 +419,8 @@ void showAPFound() {
             addQR(epd->Xres - 66, 47, 3, 2, "https://openepaperlink.eu/tag/1/%02X/%02X%02X%02X%02X%02X%02X%02X%02X/", tag.OEPLtype, mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
             break;
         case STYPE_SIZE_097:
+        case STYPE_SIZE_116B:
+        case STYPE_SIZE_116:
             fr.setFont(&FreeSansBold18pt7b);
             fr.epdPrintf(7, 7, COLOR_BLACK, rotation::ROTATE_0, "AP Found - Waiting for data");
             fr.setFont(&FreeSans9pt7b);
@@ -413,6 +432,18 @@ void showAPFound() {
             uiPrintBatteryVoltage(&fr, 10, epd->Yres - 43);
             fr.epdPrintf(10, epd->Yres - 25, 0, rotation::ROTATE_0, "MAC: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
             addQR(epd->Xres - 66, 47, 3, 2, "https://openepaperlink.eu/tag/1/%02X/%02X%02X%02X%02X%02X%02X%02X%02X/", tag.OEPLtype, mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
+            break;
+        case STYPE_SIZE_027:
+            fr.setFont(&FreeSansBold18pt7b);
+            fr.epdPrintf(7, 7, COLOR_BLACK, rotation::ROTATE_0, "AP Found");
+            fr.setFont(&FreeSans9pt7b);
+            fr.epdPrintf(10, 53, COLOR_RED, rotation::ROTATE_0, "%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", APmac[7], APmac[6], APmac[5], APmac[4], APmac[3], APmac[2], APmac[1], APmac[0]);
+            fr.epdPrintf(10, 71, COLOR_RED, rotation::ROTATE_0, "RSSI: %ddBm    LQI: %d", mLastRSSI, mLastLqi);
+            fr.epdPrintf(10, 89, COLOR_RED, rotation::ROTATE_0, "Ch %d", currentChannel);
+            fr.setFont(&FreeSans9pt7b);
+            uiPrintBatteryVoltage(&fr, 10, epd->Yres - 43);
+            fr.epdPrintf(10, epd->Yres - 25, 0, rotation::ROTATE_0, "MAC: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
+            addQR(epd->Xres - 60, 100, 3, 2, "https://openepaperlink.eu/tag/1/%02X/%02X%02X%02X%02X%02X%02X%02X%02X/", tag.OEPLtype, mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
             break;
     }
     addOverlay();
@@ -539,6 +570,8 @@ void showNoAP() {
             addFlashImage(312, 274, COLOR_RED, rotation::ROTATE_0, pandared);
             break;
         case STYPE_SIZE_097:
+        case STYPE_SIZE_116B:
+        case STYPE_SIZE_116:
             fr.setFont(&FreeSansBold18pt7b);
             fr.epdPrintf(7, 7, COLOR_BLACK, rotation::ROTATE_0, "No AP Found          U_U");
             fr.setFont(&FreeSans9pt7b);
@@ -549,6 +582,16 @@ void showNoAP() {
             fr.epdPrintf(10, 98, COLOR_BLACK, rotation::ROTATE_0, "the NFC-wake area with your phone");
             addFlashImage(200, 128, COLOR_BLACK, rotation::ROTATE_0, pandablack);
             addFlashImage(312, 274, COLOR_RED, rotation::ROTATE_0, pandared);
+            break;
+        case STYPE_SIZE_027:
+            fr.setFont(&FreeSansBold18pt7b);
+            fr.epdPrintf(7, 7, COLOR_BLACK, rotation::ROTATE_0, "No AP Found");
+            fr.setFont(&FreeSans9pt7b);
+            addQR(epd->Xres - 66, 47, 3, 2, "https://openepaperlink.eu/tag/1/%02X/%02X%02X%02X%02X%02X%02X%02X%02X/", tag.OEPLtype, mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
+            fr.epdPrintf(10, 69, COLOR_BLACK, rotation::ROTATE_0, "Couldn't find an AP :(");
+            fr.epdPrintf(10, 89, COLOR_BLACK, rotation::ROTATE_0, "I'll try again in a little while, but you");
+            fr.epdPrintf(10, 109, COLOR_BLACK, rotation::ROTATE_0, "can force a retry now by scanning");
+            fr.epdPrintf(10, 129, COLOR_BLACK, rotation::ROTATE_0, "the NFC-wake area with your phone");
             break;
     }
     addOverlay();
