@@ -358,6 +358,14 @@ void executeCommand(uint8_t cmd) {
             currentChannel = channelSelect(4);
             break;
         case CMD_DO_DEEPSLEEP:
+            while (1) {
+                powerUp(INIT_EPD);
+                showLongTermSleep();
+                powerDown(INIT_EPD | INIT_UART);
+                doSleep(100000);
+            }
+            break;
+        case CMD_ENTER_AFTER_FLASH:
             powerUp(INIT_EPD);
             afterFlashScreenSaver();
             powerDown(INIT_EPD | INIT_UART);

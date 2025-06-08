@@ -16,10 +16,11 @@
 
 #define MAX_WINDOW_SIZE 8192
 #define ZLIB_CACHE_SIZE 256
+#define OUT_CACHE_SIZE 1024
 
 uint32_t __attribute__((always_inline)) inline HAL_flashRead(uint32_t address, uint8_t *buffer, uint16_t numbytes) {
     eepromRead(address, (void *)buffer, numbytes);
-    return numbytes;;
-}
+    return numbytes;
+};
 
 #include "../../common/compression.cpp"

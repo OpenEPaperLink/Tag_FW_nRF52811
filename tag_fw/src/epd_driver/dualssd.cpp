@@ -64,7 +64,7 @@ void dualssd::epdEnterSleep() {
 }
 void dualssd::epdSetup() {
     printf("init epd...\n");
-    epdReset();
+    epdReset(EPD_BUSY_SSD);
     epdWrite(CMD_SOFT_RESET, 0);
     delay(10);
     switch (this->controllerType) {
@@ -142,6 +142,7 @@ void dualssd::epdWriteDisplayData() {
         epdSelect();
 
         for (uint16_t curY = 0; curY < epd->effectiveYRes; curY += 2) {
+            wdt60s();
             // Get 'even' screen line
             buf[0] = (uint8_t *)calloc(epd->effectiveXRes / 8, 1);
 

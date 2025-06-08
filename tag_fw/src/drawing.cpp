@@ -28,3 +28,4 @@ uint32_t __attribute__((always_inline)) inline HAL_flashRead(uint32_t address, u
 }
 
 #include "../../common/drawing.cpp"
+;

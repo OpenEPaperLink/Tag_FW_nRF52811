@@ -60,7 +60,7 @@ void uc8179::epdEnterSleep() {
 }
 
 void uc8179::epdSetup() {
-    epdReset();
+    epdReset(EPD_BUSY_UC);
     epdWrite(CMD_PANEL_SETTING, 1, 0x0F);
     epdWrite(CMD_VCOM_INTERVAL, 2, 0x30, 0x07);
     epdWrite(CMD_RESOLUTION_SETING, 4, epd->effectiveXRes >> 8, epd->effectiveXRes & 0xFF, epd->effectiveYRes >> 8, epd->effectiveYRes & 0xFF);

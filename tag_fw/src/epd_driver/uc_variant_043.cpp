@@ -26,7 +26,7 @@
 #define EPD_CMD_UNKNOWN 0xF8
 
 void epdvar43::epdEnterSleep() {
-    epdReset();
+    epdReset(EPD_BUSY_UC);
     delay(100);
     epd_cmd(EPD_CMD_POWER_OFF);
     delay(100);
@@ -35,7 +35,7 @@ void epdvar43::epdEnterSleep() {
 }
 
 void epdvar43::epdSetup() {
-    epdReset();
+    epdReset(EPD_BUSY_UC);
     epdWrite(EPD_CMD_UNKNOWN, 2, 0x60, 0x05);
     epdWrite(EPD_CMD_UNKNOWN, 2, 0xA1, 0x00);
     epdWrite(EPD_CMD_UNKNOWN, 2, 0x73, 0x05);

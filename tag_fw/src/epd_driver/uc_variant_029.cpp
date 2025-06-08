@@ -33,7 +33,7 @@ void epdvar29::epdEnterSleep() {
 }
 
 void epdvar29::epdSetup() {
-    epdReset();
+    epdReset(EPD_BUSY_UC);
     epdWrite(0x4D, 1, 0x55);
     epdWrite(0xF3, 1, 0x0A);
     epdWrite(0x31, 1, 0x00);

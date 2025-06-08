@@ -8,13 +8,43 @@
 
 bool epdGPIOActive = false;
 
-void epdReset() {
-    digitalWrite(EPD_RST, HIGH);
-    delay(12);
-    digitalWrite(EPD_RST, LOW);
-    delay(20);
-    digitalWrite(EPD_RST, HIGH);
-    delay(20);
+bool epdReset(uint8_t type) {
+    for (uint8_t attempt = 10;; attempt += 20) {
+        digitalWrite(EPD_RST, HIGH);
+        delay(attempt);
+        digitalWrite(EPD_RST, LOW);
+        delay(attempt);
+        digitalWrite(EPD_RST, HIGH);
+        delay(attempt);
+        if (epdWaitUntilNotBusy(type, 50 + attempt)) {
+            if (type == EPD_BUSY_UC)
+                delay(attempt);  // we have an additional wait for UC-style controllers
+
+            break;
+        } else {
+            if (attempt >= EPD_RESET_MAX) {
+#ifdef DEBUG_EPD
+                pr("EPD: Failed to reset!\n");
+#endif
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool epdWaitUntilNotBusy(uint8_t type, uint32_t ms) {
+    switch (type) {
+        case EPD_BUSY_SSD:
+            epdBusyWaitFalling(ms);
+            if (digitalRead(EPD_BUSY) == HIGH) return false;
+            break;
+        case EPD_BUSY_UC:
+            epdBusyWaitRising(ms);
+            if (digitalRead(EPD_BUSY) == LOW) return false;
+            break;
+    }
+    return true;
 }
 
 void epdConfigGPIO(bool setup) {
@@ -162,8 +192,7 @@ void SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQHandler(void) {
 #endif
 
 void epdSPIWait() {
-    while (!epdSPIWriteComplete)
-        ;
+    while (!epdSPIWriteComplete);
 }
 
 bool HWSPIStatus = false;

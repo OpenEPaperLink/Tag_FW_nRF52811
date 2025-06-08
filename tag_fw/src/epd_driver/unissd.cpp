@@ -57,21 +57,18 @@ void unissd::selectLUT(uint8_t lut) {
 }
 
 void unissd::epdEnterSleep() {
-    digitalWrite(EPD_RST, LOW);
-    delay(10);
-    digitalWrite(EPD_RST, HIGH);
-    delay(50);
+    epdReset(EPD_BUSY_SSD);
     epdWrite(CMD_SOFT_RESET2, 0);
     epdBusyWaitFalling(15);
     epdWrite(CMD_ENTER_SLEEP, 1, 0x03);
 }
 void unissd::epdSetup() {
-    #ifdef DEBUG_EPD
+#ifdef DEBUG_EPD
     printf("Starting EPD Setup\n");
-    #endif
-    epdReset();
+#endif
+    epdReset(EPD_BUSY_SSD);
     epdWrite(CMD_SOFT_RESET, 0);
-    delay(10);
+    epdWaitUntilNotBusy(EPD_BUSY_SSD, 50);
     switch (this->controllerType) {
         case 0x0F:
         case 0x12:
@@ -105,7 +102,7 @@ void unissd::epdSetup() {
             delay(15);
             epdWrite(CMD_SOFT_START_CTRL, 5, 0xAE, 0xC7, 0xC3, 0xC0, 0x80);
             epdWrite(CMD_DRV_OUTPUT_CTRL, 3, 0x9F, 0x02, 0x00);
-            //epdWrite(CMD_DRV_OUTPUT_CTRL, 3, 0x2E, 0x02, 0x00);
+            // epdWrite(CMD_DRV_OUTPUT_CTRL, 3, 0x2E, 0x02, 0x00);
             epdWrite(CMD_DATA_ENTRY_MODE, 1, 0x02);
             epdWrite(CMD_WINDOW_X_SIZE, 4, 0xBF, 0x03, 0x00, 0x00);
             epdWrite(CMD_WINDOW_Y_SIZE, 4, 0x00, 0x00, 0x7F, 0x02);
@@ -126,6 +123,10 @@ void unissd::epdWriteDisplayData() {
     if (!tag.thirdColor) {
         c_end = 1;
     }
+#ifdef DEBUG_EPD
+    printf("EPD: Render Start\n");
+    uint32_t t_start = millis();
+#endif
     for (uint8_t c = 0; c < c_end; c++) {
         switch (this->controllerType) {
             case 0x0F:
@@ -135,7 +136,7 @@ void unissd::epdWriteDisplayData() {
                 if (epd->epdMirrorV) {
                     epdWrite(CMD_YSTART_POS, 2, this->YOffset & 0xFF, (this->YOffset) >> 8);
                 } else {
-                    epdWrite(CMD_YSTART_POS, 2, (this->YOffset + this->effectiveYRes -1) & 0xFF, (this->YOffset + this->effectiveYRes-1) >> 8);
+                    epdWrite(CMD_YSTART_POS, 2, (this->YOffset + this->effectiveYRes - 1) & 0xFF, (this->YOffset + this->effectiveYRes - 1) >> 8);
                 }
                 break;
             case 0x19:
@@ -149,7 +150,9 @@ void unissd::epdWriteDisplayData() {
         delay(10);
         markData();
         epdSelect();
-        for (uint16_t curY = 0+epd->YOffset; curY < (epd->effectiveYRes+epd->YOffset); curY += 2) {
+
+        for (uint16_t curY = 0 + epd->YOffset; curY < (epd->effectiveYRes + epd->YOffset); curY += 2) {
+            wdt60s();
             // Get 'even' screen line
             buf[0] = (uint8_t *)calloc(epd->effectiveXRes / 8, 1);
 
@@ -188,6 +191,9 @@ void unissd::epdWriteDisplayData() {
             buf[1] = nullptr;
         }
     }
+#ifdef DEBUG_EPD
+    printf("Render done in %lu ms\n", millis() - t_start);
+#endif
     // flush the draw list, make sure items don't appear on subsequent screens
     drawItem::flushDrawItems();
 
@@ -200,24 +206,24 @@ void unissd::epdWriteDisplayData() {
 void unissd::draw() {
     drawNoWait();
     getVoltage();
-    #ifdef DEBUG_EPD
+#ifdef DEBUG_EPD
     printf("EPD: Waiting for draw to finish...\n");
-    #endif
+#endif
     epdWaitRdy();
-    #ifdef DEBUG_EPD
+#ifdef DEBUG_EPD
     printf("EPD: Draw finished\n");
-    #endif
+#endif
 }
 void unissd::drawNoWait() {
-    #ifdef DEBUG_EPD
+#ifdef DEBUG_EPD
     printf("EPD: Starting to send image data\n");
-    #endif
+#endif
     epdWriteDisplayData();
     epdWrite(CMD_DISP_UPDATE_CTRL2, 1, 0xF7);
     epdWrite(CMD_ACTIVATION, 0);
-    #ifdef DEBUG_EPD
+#ifdef DEBUG_EPD
     printf("EPD: Send Data End\n");
-    #endif
+#endif
 }
 void unissd::epdWaitRdy() {
     epdBusyWaitFalling(120000);

@@ -137,7 +137,7 @@ void uc8159::epdEnterSleep() {
     epdBusyWaitRising(250);
 }
 void uc8159::epdSetup() {
-    epdReset();
+    epdReset(EPD_BUSY_UC);
     digitalWrite(EPD_BS, LOW);
 
     epdWrite(CMD_PANEL_SETTING, 2, 0xEF, 0x08);  // default = 0xE7-0x08 // 0xEF-0x08  = right-side up

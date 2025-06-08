@@ -62,6 +62,7 @@ void addOverlay() {
     drawMask(15, epd->Yres - 53, 130, 33, COLOR_BLACK);
     if (tag.thirdColor) {
         drawMask(15, epd->Yres - 53, 130, 33, COLOR_RED);
+        drawMask(15, epd->Yres - 53, 130, 33, COLOR_YELLOW);
         drawRoundedRectangle(15, epd->Yres - 53, 129, 33, COLOR_RED);
         fr.epdPrintf(17, epd->Yres - 50, COLOR_RED, rotation::ROTATE_0, "DEBUG");
     } else {
@@ -82,6 +83,7 @@ void showSplashScreen() {
     fontrender fr(&FreeSansBold18pt7b);
     switch (tag.solumType) {
         case STYPE_SIZE_016:
+        case STYPE_SIZE_16_BWRY:
         case STYPE_SIZE_013:
             fr.setFont(&FreeSans9pt7b);
             fr.epdPrintf(2, 2, COLOR_BLACK, rotation::ROTATE_0, "OpenEPaperLink");
@@ -94,10 +96,14 @@ void showSplashScreen() {
             fr.epdPrintf(2, epd->Yres - 20, 0, rotation::ROTATE_0, "%02X:%02X:%02X:%02X:%02X:%02X", mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
             break;
         case STYPE_SIZE_022:
+        case 0x67:
             fr.setFont(&FreeSansBold18pt7b);
             fr.epdPrintf(2, 2, COLOR_BLACK, rotation::ROTATE_0, "OpenEPaperLink");
             fr.setFont(&FreeSans9pt7b);
             fr.epdPrintf(10, 38, COLOR_RED, rotation::ROTATE_0, "Newton M3 2.2\"");
+            fr.epdPrintf(10, 46, COLOR_BLACK, rotation::ROTATE_0, "Newton M3 2.2\"");
+            fr.epdPrintf(10, 54, 2, rotation::ROTATE_0, "Newton M3 2.2\"");
+
             // fr.setFont(&FreeSans9pt7b);
             fr.epdPrintf(5, epd->Yres - 40, 0, rotation::ROTATE_0, "FW: %04X-%s", fwVersion, fwVersionSuffix);
             fr.epdPrintf(5, epd->Yres - 20, 0, rotation::ROTATE_0, "MAC: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", mSelfMac[7], mSelfMac[6], mSelfMac[5], mSelfMac[4], mSelfMac[3], mSelfMac[2], mSelfMac[1], mSelfMac[0]);
@@ -603,7 +609,7 @@ void showLongTermSleep() {
     selectLUT(EPD_LUT_NO_REPEATS);
     // setColorMode(EPD_MODE_NORMAL, EPD_MODE_INVERT);
 
-    addOverlay();
+    // addOverlay();
     draw();
 }
 void showNoEEPROM() {
