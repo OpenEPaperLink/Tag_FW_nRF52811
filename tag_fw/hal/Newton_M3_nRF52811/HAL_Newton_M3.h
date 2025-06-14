@@ -23,6 +23,10 @@
 #define BUTTON3 31
 #define PEGHOOK_BUTTON 23
 
+//Custom config magic number and start address
+#define MAGIC_NUMBER 0xBAADBEEF
+#define CUSTOM_SETUP_ADDR 0x30
+
 #define EPD_RST 4
 #define EPD_BS 2
 #define EPD_CS 6
@@ -105,7 +109,11 @@ extern epdInterface* epd;
 
 #define NRF_BOARDTYPE_REGULAR 0
 #define NRF_BOARDTYPE_PEGHOOK 1
-
+struct extraButtons{
+    uint8_t buttons = 0;
+    uint8_t buttonMode[8] = {0};
+    uint8_t buttonPin[8] = {0};
+};
 struct tagSpecs {
     uint8_t buttonCount = 0;
     bool hasNFC = false;
@@ -117,6 +125,7 @@ struct tagSpecs {
     uint8_t OEPLtype = 0;
     uint8_t solumType = 0;
     uint32_t imageSize = 0;
+    extraButtons customSetup;
 };
 
 extern tagSpecs tag;
