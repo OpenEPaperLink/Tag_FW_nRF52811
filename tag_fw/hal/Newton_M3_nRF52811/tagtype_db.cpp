@@ -8,7 +8,7 @@
 #include "../include/eeprom.h"
 #include "settings.h"
 
-#define DEBUG_SHOW_TAGINFO
+
 uint8_t getUICRByte(uint8_t offset) {
     // the nRF accesses registers and data in 32-bit words. We'll need to do some quick maffs to get individual bytes
     uint32_t reg = NRF_UICR->CUSTOMER[offset / 4];
