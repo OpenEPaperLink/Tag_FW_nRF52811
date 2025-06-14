@@ -20,6 +20,7 @@
 
 #define BUTTON1 28
 #define BUTTON2 29
+#define BUTTON3 31
 #define PEGHOOK_BUTTON 23
 
 #define EPD_RST 4

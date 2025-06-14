@@ -8,6 +8,7 @@
 #include "../include/eeprom.h"
 #include "settings.h"
 
+#define DEBUG_SHOW_TAGINFO
 uint8_t getUICRByte(uint8_t offset) {
     // the nRF accesses registers and data in 32-bit words. We'll need to do some quick maffs to get individual bytes
     uint32_t reg = NRF_UICR->CUSTOMER[offset / 4];
@@ -135,6 +136,8 @@ void identifyTagInfo() {
         tag.buttonCount++;
     if (capabilities[1] & 0x01)
         tag.buttonCount++;
+    if (capabilities[1] & 0x02)
+        tag.buttonCount++;
     if (capabilities[1] & 0x10)
         tag.hasLED = true;
     if (capabilities[0] & 0x01)
@@ -229,7 +232,13 @@ void identifyTagInfo() {
             epd->epdMirrorV = true;
             break;
         case STYPE_SIZE_043:
-            tag.macSuffix = 0xB7D0;
+            if (tag.buttonCount == 3) {
+                // probably the 'normal' M3 version
+                tag.macSuffix = 0xE790;
+            } else {
+                // probably the 'lite' version
+                tag.macSuffix = 0xB7D0;
+            }
             epd->drawDirectionRight = true;
             //            epd->mirrorH = true;
             tag.OEPLtype = SOLUM_M3_BWR_43;
@@ -273,6 +282,12 @@ void identifyTagInfo() {
             tag.macSuffix = 0x9290;
             epd->drawDirectionRight = false;
             tag.OEPLtype = SOLUM_M3_BWRY_16;
+            epd->epdMirrorV = true;
+            break;
+        case STYPE_SIZE_30_BWRY:
+            tag.macSuffix = 0x9490;
+            epd->drawDirectionRight = false;
+            tag.OEPLtype = SOLUM_M3_BWRY_30;
             epd->epdMirrorV = true;
             break;
         case STYPE_SIZE_013:

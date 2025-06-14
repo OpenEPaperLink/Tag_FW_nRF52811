@@ -45,6 +45,11 @@ void button2wake() {
     resettimer();
 }
 
+void button3wake() {
+    wakeUpReason = WAKEUP_REASON_BUTTON3;
+    resettimer();
+}
+
 void nfcwake() {
     wakeUpReason = WAKEUP_REASON_NFC;
     resettimer();
@@ -67,8 +72,10 @@ void setupPortsInitial() {
         case NRF_BOARDTYPE_REGULAR:
             pinMode(BUTTON1, INPUT_PULLUP);
             pinMode(BUTTON2, INPUT_PULLUP);
+            pinMode(BUTTON3, INPUT_PULLUP);
             attachInterrupt(digitalPinToInterrupt(BUTTON1), button1wake, FALLING);
             attachInterrupt(digitalPinToInterrupt(BUTTON2), button2wake, FALLING);
+            attachInterrupt(digitalPinToInterrupt(BUTTON3), button3wake, FALLING);
             break;
         case NRF_BOARDTYPE_PEGHOOK:
             pinMode(PEGHOOK_BUTTON, INPUT_PULLUP);
