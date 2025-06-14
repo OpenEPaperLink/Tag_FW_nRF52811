@@ -294,11 +294,10 @@ void identifyTagInfo() {
             epd->epdMirrorV = true;
             break;
         case STYPE_SIZE_043:
-            if (tag.buttonCount == 3) {
-                // probably the 'normal' M3 version
+
+            if (tag.customSetup.buttonPin[0] == 31 && tag.customSetup.buttonMode[0] == 0b01010101) {
                 tag.macSuffix = 0xE790;
             } else {
-                // probably the 'lite' version
                 tag.macSuffix = 0xB7D0;
             }
             epd->drawDirectionRight = true;

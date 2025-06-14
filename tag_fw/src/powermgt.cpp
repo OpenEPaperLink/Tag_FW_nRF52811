@@ -114,7 +114,7 @@ void setupPortsInitial() {
 
     typedef void (*InterruptHandler)();  // Define a type for ISR function pointers
 
-    // Define the handlers for each button (0 to 7)
+
     InterruptHandler buttonHandlers[8] = {
         button3wake, 
         button4wake, 
@@ -126,7 +126,7 @@ void setupPortsInitial() {
         button10wake, 
     };
 
-    for (int i = 0; i < 2; i++) {  // Increase upper bound if you add more buttons
+    for (int i = 0; i < 8; i++) {  
         if ((tag.customSetup.buttons & (1 << i)) != 0) {
             uint8_t mode = tag.customSetup.buttonMode[i];
             uint8_t pin = tag.customSetup.buttonPin[i];
