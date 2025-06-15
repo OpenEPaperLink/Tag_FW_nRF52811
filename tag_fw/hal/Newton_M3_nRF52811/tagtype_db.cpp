@@ -120,10 +120,10 @@ void identifyTagInfo() {
             buttonMode[i] = getUICRByte(CUSTOM_SETUP_ADDR+16+i);
         }
         
-        printf("magic number found\n");
-        for(int i=0; i<8; i++){
+        printf("magic number found for custom setup\n");
+        /*for(int i=0; i<8; i++){
             printf("Button %d: pin=%d, config=%d\n", i, buttonPin[i], buttonMode[i]);
-        }
+        }*/
 
         for(int i=0; i<8; i++){
             //If bit I of button is set to 1
@@ -145,7 +145,7 @@ void identifyTagInfo() {
 
 
     }else{
-        printf("Magic number not found, version or lengh mismatch. Found: %x instead.\n", magicNumber);
+        //printf("Magic number not found, version or lengh mismatch. Found: %x instead.\n", magicNumber);
     }
 
     //end of CustomSetupm
