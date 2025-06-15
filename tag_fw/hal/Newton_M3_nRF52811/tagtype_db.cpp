@@ -12,7 +12,7 @@ bool isValidNRF52811Pin(uint8_t pin) {
     switch (pin) {
         case 0: case 1:
         case 22: case 23: case 24:
-        case 28:
+        case 27: case 28:
         case 30: case 31:
             return true;
         default:
