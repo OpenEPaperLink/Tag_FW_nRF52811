@@ -45,6 +45,40 @@ void button2wake() {
     resettimer();
 }
 
+void button3wake() {
+    wakeUpReason = WAKEUP_REASON_BUTTON3;
+    resettimer();
+}
+
+void button4wake() {
+    wakeUpReason = WAKEUP_REASON_BUTTON4;
+    resettimer();
+}
+void button5wake() {
+    wakeUpReason = WAKEUP_REASON_BUTTON5;
+    resettimer();
+}
+void button6wake() {
+    wakeUpReason = WAKEUP_REASON_BUTTON6;
+    resettimer();
+}
+void button7wake() {
+    wakeUpReason = WAKEUP_REASON_BUTTON7;
+    resettimer();
+}
+void button8wake() {
+    wakeUpReason = WAKEUP_REASON_BUTTON8;
+    resettimer();
+}
+void button9wake() {
+    wakeUpReason = WAKEUP_REASON_BUTTON9;
+    resettimer();
+}
+void button10wake() {
+    wakeUpReason = WAKEUP_REASON_BUTTON10;
+    resettimer();
+}
+
 void nfcwake() {
     wakeUpReason = WAKEUP_REASON_NFC;
     resettimer();
@@ -69,12 +103,66 @@ void setupPortsInitial() {
             pinMode(BUTTON2, INPUT_PULLUP);
             attachInterrupt(digitalPinToInterrupt(BUTTON1), button1wake, FALLING);
             attachInterrupt(digitalPinToInterrupt(BUTTON2), button2wake, FALLING);
+
             break;
         case NRF_BOARDTYPE_PEGHOOK:
             pinMode(PEGHOOK_BUTTON, INPUT_PULLUP);
             attachInterrupt(digitalPinToInterrupt(PEGHOOK_BUTTON), button1wake, FALLING);
             break;
     }
+    
+
+    typedef void (*InterruptHandler)();  // Define a type for ISR function pointers
+
+
+    InterruptHandler buttonHandlers[8] = {
+        button3wake, 
+        button4wake, 
+        button5wake,
+        button6wake,
+        button7wake,
+        button8wake,
+        button9wake,
+        button10wake, 
+    };
+
+    for (int i = 0; i < 8; i++) {  
+        if ((tag.customSetup.buttons & (1 << i)) != 0) {
+            uint8_t mode = tag.customSetup.buttonMode[i];
+            uint8_t pin = tag.customSetup.buttonPin[i];
+            if (mode & (1 << 0)) {
+                pinMode(pin, INPUT_PULLUP);
+                attachInterrupt(digitalPinToInterrupt(pin), buttonHandlers[i], FALLING);
+            } else if (mode & (1 << 1)) {
+                pinMode(pin, INPUT_PULLDOWN);
+                attachInterrupt(digitalPinToInterrupt(pin), buttonHandlers[i], RISING);
+            }
+        }
+    }
+
+
+    /*if((tag.customSetup.buttons & (1 << 0)) != 0){
+        if((tag.customSetup.buttonMode[0]& (1 << 0)) != 0){ 
+            pinMode(tag.customSetup.buttonPin[0], INPUT_PULLUP);
+            attachInterrupt(digitalPinToInterrupt(tag.customSetup.buttonPin[0]), button3wake, FALLING);
+        }else{
+            if((tag.customSetup.buttonMode[0]& (1 << 1)) != 0){
+                pinMode(tag.customSetup.buttonPin[0], INPUT_PULLDOWN);
+                attachInterrupt(digitalPinToInterrupt(tag.customSetup.buttonPin[0]), button3wake, RISING);
+            }
+        }
+    }
+    if((tag.customSetup.buttons & (1 << 1)) != 0){
+        if((tag.customSetup.buttonMode[1]& (1 << 0)) != 0){ 
+            pinMode(tag.customSetup.buttonPin[1], INPUT_PULLUP);
+            attachInterrupt(digitalPinToInterrupt(tag.customSetup.buttonPin[1]), button4wake, FALLING);
+        }else{
+            if((tag.customSetup.buttonMode[1]& (1 << 1)) != 0){
+                pinMode(tag.customSetup.buttonPin[0], INPUT_PULLDOWN);
+                attachInterrupt(digitalPinToInterrupt(tag.customSetup.buttonPin[1]), button4wake, RISING);
+            }
+        }
+    }*/
 
     pinMode(NFC_POWER, INPUT_PULLDOWN);
     pinMode(NFC_IRQ, INPUT_PULLDOWN);

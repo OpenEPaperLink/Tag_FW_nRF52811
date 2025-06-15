@@ -8,6 +8,18 @@
 #include "../include/eeprom.h"
 #include "settings.h"
 
+bool isValidNRF52811Pin(uint8_t pin) {
+    switch (pin) {
+        case 0: case 1:
+        case 22: case 23: case 24:
+        case 27: case 28:
+        case 30: case 31:
+            return true;
+        default:
+            return false;
+    }
+}
+
 uint8_t getUICRByte(uint8_t offset) {
     // the nRF accesses registers and data in 32-bit words. We'll need to do some quick maffs to get individual bytes
     uint32_t reg = NRF_UICR->CUSTOMER[offset / 4];
@@ -87,6 +99,57 @@ void identifyTagInfo() {
     tag.solumType = getUICRByte(0x16);
     tag.thirdColor = getUICRByte(0x0A);
 
+
+    //Start of CustomSetup
+    uint32_t magicNumber = getUICRByte(CUSTOM_SETUP_ADDR)<<(8*3);
+    magicNumber |= getUICRByte(CUSTOM_SETUP_ADDR+1)<<(8*2);
+    magicNumber |= getUICRByte(CUSTOM_SETUP_ADDR+2)<<(8*1);
+    magicNumber |= getUICRByte(CUSTOM_SETUP_ADDR+3);
+    uint8_t version_CS = getUICRByte(CUSTOM_SETUP_ADDR+4);
+    uint8_t crc_CS = getUICRByte(CUSTOM_SETUP_ADDR+5);
+    uint8_t len_CS = getUICRByte(CUSTOM_SETUP_ADDR+6);
+
+    //At the moment there is no check on the CRC
+    if(magicNumber == MAGIC_NUMBER && version_CS == 0x01 && len_CS == 0x11){
+
+        uint8_t buttons = getUICRByte(CUSTOM_SETUP_ADDR+7);
+        uint8_t buttonPin[8] = {0};
+        uint8_t buttonMode[8] = {0};
+        for(int i=0; i<8; i++){
+            buttonPin[i] = getUICRByte(CUSTOM_SETUP_ADDR+8+i);
+            buttonMode[i] = getUICRByte(CUSTOM_SETUP_ADDR+16+i);
+        }
+        
+        printf("magic number found for custom setup\n");
+        /*for(int i=0; i<8; i++){
+            printf("Button %d: pin=%d, config=%d\n", i, buttonPin[i], buttonMode[i]);
+        }*/
+
+        for(int i=0; i<8; i++){
+            //If bit I of button is set to 1
+            if((buttons & (1 << i)) != 0){
+                if(isValidNRF52811Pin(buttonPin[i])){
+                    tag.customSetup.buttons |= (1 << i);
+                    tag.customSetup.buttonPin[i] = buttonPin[i];
+                    tag.customSetup.buttonMode[i] = buttonMode[i];
+                    printf("- Button %d: pin=%d, config=0b", i, buttonPin[i]);
+                    for (int j = 7; j >= 0; j--) {
+                        putchar((buttonMode[i] & (1 << j)) ? '1' : '0');
+                    }
+                    printf(".\n");
+                }else{
+                    printf("error: button %d: pin=%d, config=0b%b: Pin not available.\n", i, buttonPin[i], buttonMode[i]);
+                }
+            }
+        }
+
+
+    }else{
+        //printf("Magic number not found, version or lengh mismatch. Found: %x instead.\n", magicNumber);
+    }
+
+    //end of CustomSetupm
+
     switch (controllerType) {
         case 0x0A:
         case 0x0F:
@@ -135,6 +198,8 @@ void identifyTagInfo() {
         tag.buttonCount++;
     if (capabilities[1] & 0x01)
         tag.buttonCount++;
+    //if (capabilities[1] & 0x02)
+    //    tag.buttonCount++;
     if (capabilities[1] & 0x10)
         tag.hasLED = true;
     if (capabilities[0] & 0x01)
@@ -229,7 +294,12 @@ void identifyTagInfo() {
             epd->epdMirrorV = true;
             break;
         case STYPE_SIZE_043:
-            tag.macSuffix = 0xB7D0;
+
+            if (tag.customSetup.buttonPin[0] == 31 && tag.customSetup.buttonMode[0] == 0b01010101) {
+                tag.macSuffix = 0xE790;
+            } else {
+                tag.macSuffix = 0xB7D0;
+            }
             epd->drawDirectionRight = true;
             //            epd->mirrorH = true;
             tag.OEPLtype = SOLUM_M3_BWR_43;
@@ -273,6 +343,12 @@ void identifyTagInfo() {
             tag.macSuffix = 0x9290;
             epd->drawDirectionRight = false;
             tag.OEPLtype = SOLUM_M3_BWRY_16;
+            epd->epdMirrorV = true;
+            break;
+        case STYPE_SIZE_30_BWRY:
+            tag.macSuffix = 0x9490;
+            epd->drawDirectionRight = false;
+            tag.OEPLtype = SOLUM_M3_BWRY_30;
             epd->epdMirrorV = true;
             break;
         case STYPE_SIZE_013:
