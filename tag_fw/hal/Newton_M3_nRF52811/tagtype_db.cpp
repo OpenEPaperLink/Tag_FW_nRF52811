@@ -347,9 +347,15 @@ void identifyTagInfo() {
             break;
         case STYPE_SIZE_30_BWRY:
             tag.macSuffix = 0x9490;
-            epd->drawDirectionRight = false;
+            //epd->drawDirectionRight = false;
             tag.OEPLtype = SOLUM_M3_BWRY_30;
-            epd->epdMirrorV = true;
+            //epd->epdMirrorV = true;
+            
+            epd->effectiveXRes = epdYRes;
+            epd->effectiveYRes = epdXRes;
+            
+            //epd->effectiveXRes = epdYRes;
+            //epd->effectiveYRes = epdXRes;
             break;
         case STYPE_SIZE_013:
             tag.ledInverted = true;
