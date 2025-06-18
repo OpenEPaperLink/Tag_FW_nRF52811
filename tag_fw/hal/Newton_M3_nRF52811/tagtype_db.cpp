@@ -354,6 +354,7 @@ void identifyTagInfo() {
             epd->drawDirectionRight = true;
             tag.OEPLtype = SOLUM_M3_BWRY_30;
             epd->epdMirrorV = false;
+            tag.statePinAtRest = 0x01;
             break;
         case STYPE_SIZE_013:
             tag.ledInverted = true;

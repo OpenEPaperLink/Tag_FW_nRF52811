@@ -26,11 +26,12 @@
 #define EPD_CMD_UNKNOWN 0xF8
 
 void epdvar2bwry::epdEnterSleep() {
-    epdReset(EPD_BUSY_UC);
-    delay(100);
     epd_cmd(EPD_CMD_POWER_OFF);
+    epd_data(0x00);
     delay(100);
-    epdWrite(EPD_CMD_DEEP_SLEEP, 1, 0xA5);
+
+    epd_cmd(EPD_CMD_DEEP_SLEEP);
+    epd_data(0xA5);
     delay(100);
 }
 
