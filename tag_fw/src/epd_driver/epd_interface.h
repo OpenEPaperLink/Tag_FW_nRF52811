@@ -26,5 +26,6 @@ void selectLUT(uint8_t lut);
 #include "uc8159.h"
 #include "uc8179.h"
 #include "uc_variant_bwry.h"
+#include "uc_variant2_bwry.h"
 
 #endif

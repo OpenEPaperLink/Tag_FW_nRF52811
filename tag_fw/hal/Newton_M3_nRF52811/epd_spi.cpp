@@ -24,7 +24,7 @@ bool epdReset(uint8_t type) {
         } else {
             if (attempt >= EPD_RESET_MAX) {
 #ifdef DEBUG_EPD
-                pr("EPD: Failed to reset!\n");
+                printf("EPD: Failed to reset!\n");
 #endif
                 return false;
             }
@@ -93,9 +93,14 @@ void epdConfigGPIO(bool setup) {
                 digitalWrite(EPD_VPP, LOW);
                 break;
         }
-        digitalWrite(EPD_RST, LOW);
+        if(tag.statePinAtRest == 0x01){   
+            digitalWrite(EPD_CS, HIGH);
+            digitalWrite(EPD_RST, HIGH);
+        }else{
+            digitalWrite(EPD_CS, LOW);
+            digitalWrite(EPD_RST, LOW);
+        }
         digitalWrite(EPD_BS, LOW);
-        digitalWrite(EPD_CS, LOW);
         digitalWrite(EPD_DC, LOW);
         digitalWrite(EPD_BUSY, LOW);
         digitalWrite(EPD_CLK, LOW);
@@ -179,6 +184,12 @@ void SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQHandler(void) {
     }
     epdSPIXferBytes--;
     if (epdSPIXferBytes) {
+/*
+IF CS SHOULD TOGGLE CHECK FLAG HERE
+            epdDeselect();
+            epdSelect();
+FINISH FLAG CHECKING
+*/
         if (epdSPIWrite != nullptr)
             NRF_SPI0->TXD = *(epdSPIWrite++);
         else

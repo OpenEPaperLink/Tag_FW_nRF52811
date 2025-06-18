@@ -126,6 +126,7 @@ struct tagSpecs {
     uint8_t solumType = 0;
     uint32_t imageSize = 0;
     extraButtons customSetup;
+    uint8_t statePinAtRest = 0;
 };
 
 extern tagSpecs tag;
