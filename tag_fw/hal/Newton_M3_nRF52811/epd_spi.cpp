@@ -179,6 +179,12 @@ void SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQHandler(void) {
     }
     epdSPIXferBytes--;
     if (epdSPIXferBytes) {
+/*
+IF CS SHOULD TOGGLE CHECK FLAG HERE
+            epdDeselect();
+            epdSelect();
+FINISH FLAG CHECKING
+*/
         if (epdSPIWrite != nullptr)
             NRF_SPI0->TXD = *(epdSPIWrite++);
         else

@@ -176,7 +176,11 @@ void identifyTagInfo() {
             epd = new uc8179;
             break;
         case 0x17:
-            epd = new epdvarbwry;
+            if (epdXRes == 400 && epdYRes == 168) {
+                epd = new epdvar2bwry;
+            }else{
+                epd = new epdvarbwry;
+            }
             break;
     }
 
@@ -347,15 +351,9 @@ void identifyTagInfo() {
             break;
         case STYPE_SIZE_30_BWRY:
             tag.macSuffix = 0x9490;
-            //epd->drawDirectionRight = false;
+            epd->drawDirectionRight = true;
             tag.OEPLtype = SOLUM_M3_BWRY_30;
-            //epd->epdMirrorV = true;
-            
-            epd->effectiveXRes = epdYRes;
-            epd->effectiveYRes = epdXRes;
-            
-            //epd->effectiveXRes = epdYRes;
-            //epd->effectiveYRes = epdXRes;
+            epd->epdMirrorV = false;
             break;
         case STYPE_SIZE_013:
             tag.ledInverted = true;
