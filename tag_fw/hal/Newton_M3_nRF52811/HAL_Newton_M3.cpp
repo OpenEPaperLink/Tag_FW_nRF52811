@@ -138,20 +138,31 @@ void getTemperature() {
 }
 
 void boardGetOwnMac(uint8_t *mac) {
-    mac[0] = tag.macSuffix & 0xFF;
-    mac[1] = tag.macSuffix >> 8;
-    mac[2] = (NRF_UICR->CUSTOMER[0]) & 0xFF;
-    mac[3] = (NRF_UICR->CUSTOMER[0] >> 8) & 0xFF;
-    mac[4] = (NRF_UICR->CUSTOMER[0] >> 16) & 0xFF;
-    mac[5] = (NRF_UICR->CUSTOMER[0] >> 24);
-    mac[6] = 0;
-    mac[7] = 0;
-    uint8_t cksum = 0;
-    for (uint8_t c = 0; c < 8; c++) {
-        cksum ^= mac[c];
-        cksum ^= mac[c] >> 4;
+    if (NRF_UICR->CUSTOMER[0] == 0xFFFFFFFF) {
+        mac[0] = (NRF_FICR->DEVICEADDR[1]) & 0xFF;
+        mac[1] = (NRF_FICR->DEVICEADDR[1] >> 8) & 0xFF;
+        mac[2] = (NRF_FICR->DEVICEADDR[1] >> 16) & 0xFF;
+        mac[3] = (NRF_FICR->DEVICEADDR[1] >> 24);
+        mac[4] = (NRF_FICR->DEVICEADDR[0]) & 0xFF;
+        mac[5] = (NRF_FICR->DEVICEADDR[0] >> 8) & 0xFF;
+        mac[6] = (NRF_FICR->DEVICEADDR[0] >> 16) & 0xFF;
+        mac[7] = (NRF_FICR->DEVICEADDR[0] >> 24);
+    } else {
+        mac[0] = tag.macSuffix & 0xFF;
+        mac[1] = tag.macSuffix >> 8;
+        mac[2] = (NRF_UICR->CUSTOMER[0]) & 0xFF;
+        mac[3] = (NRF_UICR->CUSTOMER[0] >> 8) & 0xFF;
+        mac[4] = (NRF_UICR->CUSTOMER[0] >> 16) & 0xFF;
+        mac[5] = (NRF_UICR->CUSTOMER[0] >> 24);
+        mac[6] = 0;
+        mac[7] = 0;
+        uint8_t cksum = 0;
+        for (uint8_t c = 0; c < 8; c++) {
+            cksum ^= mac[c];
+            cksum ^= mac[c] >> 4;
+        }
+        mac[0] += cksum & 0x0F;
     }
-    mac[0] += cksum & 0x0F;
 }
 
 void watchdog_enable(int timeout) {
