@@ -358,10 +358,10 @@ void executeCommand(uint8_t cmd) {
             currentChannel = channelSelect(4);
             break;
         case CMD_DO_DEEPSLEEP:
+            powerUp(INIT_EPD);
+            showLongTermSleep();
+            powerDown(INIT_EPD | INIT_UART);
             while (1) {
-                powerUp(INIT_EPD);
-                showLongTermSleep();
-                powerDown(INIT_EPD | INIT_UART);
                 doSleep(100000);
             }
             break;
