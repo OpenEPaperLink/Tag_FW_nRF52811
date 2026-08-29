@@ -9,6 +9,7 @@
 #include "lut.h"
 #include "powermgt.h"
 
+#include "../../shared/oepl-proto.h"
 #include "settings.h"
 #include "syncedproto.h"  // for APmac / Channel
 #include "hal.h"
@@ -26,7 +27,7 @@ bool lowBatteryShown = false;
 bool noAPShown = false;
 
 void addOverlay() {
-    if (currentChannel == 0) {
+    if (currentChannel == 0 && tagSettings.enableNoRFSymbol) {
         drawMask(epd->Xres - 28, 4, 24, 24, COLOR_BLACK);
         if (tag.thirdColor) {
             drawMask(epd->Xres - 28, 4, 24, 24, COLOR_RED);
@@ -43,7 +44,7 @@ void addOverlay() {
         noAPShown = false;
     }
 
-    if (lowBattery) {
+    if (lowBattery && tagSettings.enableLowBatSymbol) {
         drawMask(epd->Xres - 27, epd->Yres - 26, 22, 22, COLOR_BLACK);
         if (tag.thirdColor) {
             drawMask(epd->Xres - 27, epd->Yres - 26, 22, 22, COLOR_RED);
