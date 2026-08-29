@@ -480,8 +480,7 @@ void showNoAP() {
             fr.epdPrintf(7, 7, COLOR_BLACK, rotation::ROTATE_0, "No AP Found");
             fr.setFont(&FreeSans9pt7b);
             fr.epdPrintf(10, 69, COLOR_BLACK, rotation::ROTATE_0, "Couldn't find an AP :(");
-            fr.epdPrintf(10, 89, COLOR_BLACK, rotation::ROTATE_0, "I'll try again in a little while, but you");
-            fr.epdPrintf(10, 109, COLOR_BLACK, rotation::ROTATE_0, "can force a retry now by pressing a button");
+            fr.epdPrintf(10, 89, COLOR_BLACK, rotation::ROTATE_0, "I'll try again in a little while");
             break;
         case STYPE_SIZE_026:
             fr.setFont(&FreeSansBold18pt7b);
