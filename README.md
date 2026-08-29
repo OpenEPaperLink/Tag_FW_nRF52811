@@ -16,7 +16,7 @@ This is the firmware for nRF52811-based tags such as the M3 series tags
 - Improved compatibility with S2/TagAP-based tags
 - Added support for 5.85", 5.85"-lowtemp, 2.6" and 2.7" - Thanks VstudioLAB!
 - Changes to the EPD drivers to allow for linear reading of compressed image datastreams (update your AP if your image is upside down!)
-
+ 
 ## 0026 - Universal FW
 - Incorporates Jonas' changes for LED control
 - Fixed 4.3" shutdown routine
