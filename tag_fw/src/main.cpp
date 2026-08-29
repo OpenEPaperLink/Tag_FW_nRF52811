@@ -22,7 +22,7 @@ uint8_t getFirstWakeUpReason();
 #define TAG_MODE_CHANSEARCH 0
 #define TAG_MODE_ASSOCIATED 1
 
-uint8_t currentTagMode = TAG_MODE_CHANSEARCH;
+uint8_t currentTagMode = TAG_MODE_CHANSEARCH; 
 
 uint8_t slideShowCurrentImg = 0;
 uint8_t slideShowRefreshCount = 1;
