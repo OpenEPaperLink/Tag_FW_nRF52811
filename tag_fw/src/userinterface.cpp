@@ -608,9 +608,9 @@ void showNoAP() {
 
 void showLongTermSleep() {
     selectLUT(EPD_LUT_NO_REPEATS);
-    // setColorMode(EPD_MODE_NORMAL, EPD_MODE_INVERT);
-
-    // addOverlay();
+    fontrender fr(&FreeSansBold18pt7b);
+    fr.epdPrintf(7, 7, COLOR_BLACK, rotation::ROTATE_0, "Zz");
+    addOverlay();
     draw();
 }
 void showNoEEPROM() {
