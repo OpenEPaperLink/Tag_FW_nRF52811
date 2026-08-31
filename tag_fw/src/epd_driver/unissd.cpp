@@ -69,10 +69,12 @@ void unissd::epdSetup() {
     epdReset(EPD_BUSY_SSD);
     epdWrite(CMD_SOFT_RESET, 0);
     epdWaitUntilNotBusy(EPD_BUSY_SSD, 50);
+	delay(10);
     switch (this->controllerType) {
         case 0x0F:
         case 0x12:
         case 0x15:
+        case 0x0C:
             // stock init 1.6"
             epdWrite(CMD_DRV_OUTPUT_CTRL, 3, this->effectiveYRes & 0xFF, this->effectiveYRes >> 8, 0x00);
             if (epd->epdMirrorV) {
@@ -132,6 +134,7 @@ void unissd::epdWriteDisplayData() {
             case 0x0F:
             case 0x12:
             case 0x15:
+            case 0x0C:
                 epdWrite(CMD_XSTART_POS, 1, (this->XOffset / 8));
                 if (epd->epdMirrorV) {
                     epdWrite(CMD_YSTART_POS, 2, this->YOffset & 0xFF, (this->YOffset) >> 8);

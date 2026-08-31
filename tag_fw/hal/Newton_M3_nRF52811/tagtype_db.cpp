@@ -57,6 +57,7 @@ void identifyTagInfo() {
     99 78 B1 05 15 0A 06 04 00 0D 01 68 01 B8 00 38 07 07 01 80 00 00 43 FF FF FF FF FF FF FF FF FF     2.6"
     72 92 1E 7E 15 0B 09 04 00 15 00 80 01 A8 00 38 00 01 01 9C 00 00 22 FF FF FF FF FF FF FF FF FF     2.9" FREEZER
     2F A5 03 06 15 0C 07 04 00 15 00 80 01 A8 00 38 00 07 81 1D 00 00 4E FF FF FF FF FF FF FF FF FF     2.9" BW
+    7E F1 E8 05 15 0B 17 04 00 12 01 FA 00 80 00 38 00 07 01 9C 00 00 51 FF FF FF FF FF FF FF FF FF     2.2" BWR Lite
     31 50 53 06 16 02 19 04 00 12 01 C8 00 C8 00 04 00 07 01 9C 00 00 40 FF FF FF FF FF FF FF FF FF
     4B F3 DE 04 15 05 07 04 00 0F 01 C8 00 90 00 38 00 07 01 19 00 00 4D FF FF FF FF FF FF FF FF FF     1.3-peghook
     C1 D3 42 06 16 02 0A 04 00 0A 01 80 02 C0 03 38 00 03 81 9D 00 00 4A FF FF FF FF FF FF FF FF FF     11.6" BWR
@@ -156,6 +157,7 @@ void identifyTagInfo() {
         case 0x12:
         case 0x15:
         case 0x19:
+        case 0x0C:
             if (epdXRes == 792 && epdYRes == 272) {
                 epd = new dualssd;
             } else {
