@@ -74,6 +74,10 @@
 
 void dump(const uint8_t *a, const uint16_t l);
 
+// EEPROM passthrough read (kept available for diagnostics but unused by the
+// normal refresh flow — the official BWRY 60 firmware never accesses the
+// on-flex flash via host passthrough during refresh; the panel reads its
+// own waveform LUT via the 0xE5 0x03 (LOAD_FLASH_LUT) command).
 void uc8159_var::epdEepromRead(uint16_t addr, uint8_t *data, uint16_t len) {
     epdWrite(CMD_SPI_FLASH_CONTROL, 1, 0x01);
     delay(1);
@@ -88,53 +92,24 @@ void uc8159_var::epdEepromRead(uint16_t addr, uint8_t *data, uint16_t len) {
     epdWrite(CMD_SPI_FLASH_CONTROL, 1, 0x00);
 }
 
-uint8_t uc8159_var::getTempBracket() {
-    uint8_t temptable[10];
-    epdEepromRead(25002, temptable, 10);
+// Trigger an internal temperature read on the panel and clock out the
+// 2-byte readback. The host doesn't use the value — the panel may latch it
+// internally for compensation when PANEL_SETTING is re-issued with the
+// run-mode bits set in byte 2 (0x06 in the official capture).
+void uc8159_var::readPanelTemperature() {
+    epdWrite(CMD_TEMPERATURE_SELECT, 1, 0x00);
     epdWrite(CMD_TEMPERATURE_DOREADING, 0);
-    epdBusyWaitRising(1500);
+    epdBusyWaitRising(2000);
     epdHardSPI(false);
-    int8_t temp = spi3_read();
-    temp <<= 1;
-    temp |= (spi3_read() >> 7);
-
-    uint8_t bracket = 0;
-    for (int i = 0; i < 9; i++) {
-        if ((((char)temp - (uint8_t)temptable[i]) & 0x80) != 0) {
-            bracket = i;
-            break;
-        }
-    }
+    uint8_t t0 = spi3_read();
+    uint8_t t1 = spi3_read();
     epdHardSPI(true);
-    return bracket;
-}
-
-void uc8159_var::loadFrameRatePLL(uint8_t bracket) {
-    uint8_t pllvalue;
-    uint8_t plltable[10];
-    epdEepromRead(0x6410, plltable, 10);
-    pllvalue = plltable[bracket];
-    if (!pllvalue) pllvalue = 0x3C;
-    epdWrite(CMD_PLL_CONTROL, 1, pllvalue);
-}
-
-void uc8159_var::loadTempVCOMDC(uint8_t bracket) {
-    uint8_t vcomvalue;
-    uint8_t vcomtable[10];
-    epdEepromRead(25049, vcomtable, 10);
-    vcomvalue = vcomtable[bracket];
-    if (!vcomvalue) {
-        epdEepromRead(0x6400, vcomtable, 10);
-        if (vcomtable[0])
-            vcomvalue = vcomtable[0];
-        else
-            vcomvalue = 0x1E;
-    }
-    epdWrite(CMD_VCOM_DC_SETTING, 1, vcomvalue);
+    // printf("EPD temp raw: 0x%02X 0x%02X\n", t0, t1);
 }
 
 void uc8159_var::epdEnterSleep() {
-    epdWrite(CMD_POWER_OFF, 1, 0x00);  //same as (CMD_POWER_OFF, 0); ?
+    // Captured: 0x02 0x00 then ~69ms gap then 0x07 0xA5
+    epdWrite(CMD_POWER_OFF, 1, 0x00);
     epdBusyWaitRising(2000);
     epdWrite(CMD_DEEP_SLEEP, 1, 0xA5);
     delay(100);
@@ -144,21 +119,27 @@ void uc8159_var::epdSetup() {
     epdReset(EPD_BUSY_UC);
     digitalWrite(EPD_BS, LOW);
 
-    epdWrite(CMD_PANEL_SETTING, 2, 0xEF, 0x08); // from 8159 example, corret mirrorness. captured: (CMD_PANEL_SETTING, 2, 0xE7, 0x00) 
-    epdWrite(CMD_POWER_SETTING, 2, 0x07, 0x00);
+    // PANEL_SETTING byte1 0xEF (vs capture's 0xE7) preserves the correct
+    // mirror/scan direction for our hardware. Byte2 0x08 is the init-mode
+    // value; it's changed to 0x06 after the temperature read (see drawNoWait).
+    epdWrite(CMD_PANEL_SETTING,      2, 0xEF, 0x08);
+    epdWrite(CMD_POWER_SETTING,      2, 0x07, 0x00);
     epdWrite(CMD_BOOSTER_SOFT_START, 3, 0xC7, 0xCC, 0x1B);
 
+    // Power on BEFORE the remaining configuration.
     epdBusyWaitRising(250);
     epdWrite(CMD_POWER_ON, 0);
     epdBusyWaitRising(250);
 
     epdWrite(CMD_TEMPERATURE_SELECT, 1, 0x00);
-    epdWrite(CMD_VCOM_INTERVAL, 1, 0x77);
-    epdWrite(CMD_TCON_SETTING, 1, 0x22);
-    epdWrite(CMD_RESOLUTION_SETING, 4, 0x02, 0x58, 0x01, 0xC0);
-    epdWrite(CMD_POWER_SAVING, 1, 0xAA);
-    epdWrite(CMD_FORCE_TEMPERATURE, 1, 0x03);
+    epdWrite(CMD_VCOM_INTERVAL,      1, 0x77);
+    epdWrite(CMD_TCON_SETTING,       1, 0x22);
+    epdWrite(CMD_RESOLUTION_SETING,  4, 0x02, 0x58, 0x01, 0xC0);
+    epdWrite(CMD_POWER_SAVING,       1, 0xAA);
+    epdWrite(CMD_FORCE_TEMPERATURE,  1, 0x03);
     delay(10);
+
+    printf("EPD INIT COMPLETE\n");
 }
 
 void uc8159_var::selectLUT(uint8_t lut) {
@@ -167,25 +148,12 @@ void uc8159_var::selectLUT(uint8_t lut) {
     return;
 }
 
-inline uint8_t uc8159_var::encodePixel(uint8_t blackBit, uint8_t redBit, uint8_t yellowBit) {
-    // Try different encoding - your display might use different codes
-    if (blackBit) {
-        return 0b00;  // Black
-    } else if (redBit) {
-        return 0b11;  // Red (was 10)
-    } else if (yellowBit) {
-        return 0b10;  // Yellow (was 11)
-    } else {
-        return 0b01;  // White
-    }
-}
-
 void uc8159_var::epdWriteDisplayData() {
-    uint8_t blocksize = 16; // 4
+    uint8_t blocksize = 16;
     uint16_t byteWidth = this->effectiveXRes / 8;
     uint8_t screenrow_bw[byteWidth * blocksize];
     uint8_t screenrow_r[byteWidth * blocksize];
-    uint8_t screenrow_y[byteWidth * blocksize];  // Add yellow buffer
+    uint8_t screenrow_y[byteWidth * blocksize];
     uint8_t screenrowInterleaved[byteWidth * 4];
 
     epd_cmd(CMD_DISPLAY_START_TRANSMISSION_DTM1);
@@ -201,17 +169,17 @@ void uc8159_var::epdWriteDisplayData() {
         // Render all three color planes
         for (uint8_t bcount = 0; bcount < blocksize; bcount++) {
             drawItem::renderDrawLine(screenrow_bw + (byteWidth * bcount), curY + bcount, 0);
-            drawItem::renderDrawLine(screenrow_r + (byteWidth * bcount), curY + bcount, 1);
-            drawItem::renderDrawLine(screenrow_y + (byteWidth * bcount), curY + bcount, 2);
+            drawItem::renderDrawLine(screenrow_r  + (byteWidth * bcount), curY + bcount, 1);
+            drawItem::renderDrawLine(screenrow_y  + (byteWidth * bcount), curY + bcount, 2);
         }
 
         for (uint8_t bcount = 0; bcount < blocksize; bcount++) {
             for (uint16_t curX = 0; curX < byteWidth; curX++) {
                 interleaveColorToBuffer(
-                    screenrowInterleaved + (curX * 4), 
-                    screenrow_bw[curX + (byteWidth * bcount)], 
-                    screenrow_r[curX + (byteWidth * bcount)],
-                    screenrow_y[curX + (byteWidth * bcount)]
+                    screenrowInterleaved + (curX * 4),
+                    screenrow_bw[curX + (byteWidth * bcount)],
+                    screenrow_r [curX + (byteWidth * bcount)],
+                    screenrow_y [curX + (byteWidth * bcount)]
                 );
             }
 
@@ -229,8 +197,11 @@ void uc8159_var::epdWriteDisplayData() {
     drawItem::flushDrawItems();
 }
 
+// 2 pixels per byte (4 bits per pixel). Color codes derived empirically:
+//   black=0x0, red=0x4, yellow=0x5, white=0x3
+// Each source byte holds 8 monochrome bits per plane; one output byte holds
+// 2 pixels in nibbles (upper nibble = even pixel, lower = odd).
 void uc8159_var::interleaveColorToBuffer(uint8_t *dst, uint8_t b, uint8_t r, uint8_t y) {
-    // b ^= 0xFF;
     for (int8_t shift = 3; shift >= 0; --shift) {
         uint8_t mask1 = 1 << (2 * shift);
         uint8_t mask2 = 1 << (2 * shift + 1);
@@ -242,24 +213,32 @@ void uc8159_var::interleaveColorToBuffer(uint8_t *dst, uint8_t b, uint8_t r, uin
         else                  n1 = 0x3;  // white
 
         uint8_t n2;
-        if (r & mask2)        n2 = 0x4;  // red
-        else if (y & mask2)   n2 = 0x5;  // yellow
-        else if (b & mask2)   n2 = 0x0;  // black
-        else                  n2 = 0x3;  // white
+        if (r & mask2)        n2 = 0x4;
+        else if (y & mask2)   n2 = 0x5;
+        else if (b & mask2)   n2 = 0x0;
+        else                  n2 = 0x3;
 
         *dst++ = (n2 << 4) | n1;
     }
 }
 
 void uc8159_var::draw() {
-    delay(1);
     drawNoWait();
     epdBusyWaitRising(30000);
 }
 
 void uc8159_var::drawNoWait() {
+    // Per the captured official refresh flow:
+    //   1. Read panel temperature (latches compensation inside the panel)
+    //   2. Re-issue PANEL_SETTING with byte2 = 0x06 — switches the panel
+    //      from configuration mode to temperature-compensated run mode
+    //   3. Stream the image via DTM1 (handled in epdWriteDisplayData)
+    //   4. Trigger refresh with 0x12 0x00 (with a 0x00 data byte)
+    // Byte1 stays 0xEF to preserve mirror direction from epdSetup.
+    readPanelTemperature();
+    epdWrite(CMD_PANEL_SETTING, 2, 0xEF, 0x06);
     epdWriteDisplayData();
-    epdWrite(CMD_DISPLAY_REFRESH, 1, 0x00); // same as (CMD_DISPLAY_REFRESH, 0); ?
+    epdWrite(CMD_DISPLAY_REFRESH, 1, 0x00);
 }
 
 void uc8159_var::epdWaitRdy() {

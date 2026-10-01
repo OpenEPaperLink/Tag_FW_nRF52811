@@ -2,9 +2,6 @@
 #define _EPD_UC8159_VAR_H_
 
 class uc8159_var : public epdInterface {
-    private:
-    inline uint8_t encodePixel(uint8_t blackBit, uint8_t redBit, uint8_t yellowBit);  // Add this line
-
    public:
     void epdSetup();
     void epdEnterSleep();
@@ -16,9 +13,7 @@ class uc8159_var : public epdInterface {
 
    protected:
     void epdEepromRead(uint16_t addr, uint8_t *data, uint16_t len);
-    uint8_t getTempBracket();
-    void loadFrameRatePLL(uint8_t bracket);
-    void loadTempVCOMDC(uint8_t bracket);
-    void interleaveColorToBuffer(uint8_t *dst, uint8_t b, uint8_t r, uint8_t y);  // Added y parameter
+    void readPanelTemperature();
+    void interleaveColorToBuffer(uint8_t *dst, uint8_t b, uint8_t r, uint8_t y);
 };
 #endif
