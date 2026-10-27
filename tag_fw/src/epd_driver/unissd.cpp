@@ -12,6 +12,7 @@
 
 #include "drawing.h"
 #include "unissd.h"
+#include "../../../shared/oepl-definitions.h"
 
 #define CMD_DRV_OUTPUT_CTRL 0x01
 #define CMD_SOFT_START_CTRL 0x0C
@@ -70,19 +71,24 @@ void unissd::epdSetup() {
     epdWrite(CMD_SOFT_RESET, 0);
     epdWaitUntilNotBusy(EPD_BUSY_SSD, 50);
 	delay(10);
-    switch (this->controllerType) {
+    const bool isBwr42 = tag.solumType == STYPE_SIZE_042 && tag.thirdColor == 0x01 &&
+                         this->effectiveXRes == 400 && this->effectiveYRes == 300;
+    const uint16_t gateCount = this->effectiveYRes - (isBwr42 ? 1 : 0);
+    const uint16_t lastY = this->YOffset + gateCount;
+    // 4.2" BWR uses byte X addresses, including with UICR controller ID 0x0A.
+    switch (isBwr42 ? 0x12 : this->controllerType) {
         case 0x0F:
         case 0x12:
         case 0x15:
         case 0x0C:
             // stock init 1.6"
-            epdWrite(CMD_DRV_OUTPUT_CTRL, 3, this->effectiveYRes & 0xFF, this->effectiveYRes >> 8, 0x00);
+            epdWrite(CMD_DRV_OUTPUT_CTRL, 3, gateCount & 0xFF, gateCount >> 8, 0x00);
             if (epd->epdMirrorV) {
                 epdWrite(CMD_DATA_ENTRY_MODE, 1, 0x03);
-                epdWrite(CMD_WINDOW_Y_SIZE, 4, this->YOffset & 0xFF, this->YOffset >> 8, (this->YOffset + this->effectiveYRes) & 0xFF, (this->YOffset + this->effectiveYRes) >> 8);
+                epdWrite(CMD_WINDOW_Y_SIZE, 4, this->YOffset & 0xFF, this->YOffset >> 8, lastY & 0xFF, lastY >> 8);
             } else {
                 epdWrite(CMD_DATA_ENTRY_MODE, 1, 0x01);
-                epdWrite(CMD_WINDOW_Y_SIZE, 4, (this->YOffset + this->effectiveYRes) & 0xFF, (this->YOffset + this->effectiveYRes) >> 8, this->YOffset & 0xFF, this->YOffset >> 8);
+                epdWrite(CMD_WINDOW_Y_SIZE, 4, lastY & 0xFF, lastY >> 8, this->YOffset & 0xFF, this->YOffset >> 8);
             }
             epdWrite(CMD_WINDOW_X_SIZE, 2, this->XOffset / 8, ((this->XOffset + this->effectiveXRes) / 8) - 1);
             epdWrite(CMD_BORDER_WAVEFORM_CTRL, 1, 0x05);
@@ -129,8 +135,10 @@ void unissd::epdWriteDisplayData() {
     printf("EPD: Render Start\n");
     uint32_t t_start = millis();
 #endif
+    const bool isBwr42 = tag.solumType == STYPE_SIZE_042 && tag.thirdColor == 0x01 &&
+                         this->effectiveXRes == 400 && this->effectiveYRes == 300;
     for (uint8_t c = 0; c < c_end; c++) {
-        switch (this->controllerType) {
+        switch (isBwr42 ? 0x12 : this->controllerType) {
             case 0x0F:
             case 0x12:
             case 0x15:
