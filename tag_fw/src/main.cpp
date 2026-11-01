@@ -24,7 +24,32 @@ uint8_t getFirstWakeUpReason();
 
 #define STRONG_AP_LQI 200  // the channel scan stops after a round in which an AP was heard at least this well
 
+// Tag roaming: look for a better AP only when the link quality, averaged over the last check-ins, is below
+// ROAM_LQI_THRESHOLD. That is well above a link that starts to fail, so the tag moves before it loses its AP.
+#define ROAM_LQI_THRESHOLD 160
+#define ROAM_LQI_SAMPLES 4
+
 uint8_t currentTagMode = TAG_MODE_CHANSEARCH; 
+
+uint8_t channelSelect(uint8_t rounds);
+
+static uint8_t roamLqi[ROAM_LQI_SAMPLES] = {255, 255, 255, 255};
+static uint8_t roamLqiIndex = 0;
+
+static void roamAddLqi(uint8_t lqi) {
+    roamLqi[roamLqiIndex++ % ROAM_LQI_SAMPLES] = lqi;
+}
+
+static void roamIfWeak() {
+    uint16_t sum = 0;
+    for (uint8_t c = 0; c < ROAM_LQI_SAMPLES; c++) sum += roamLqi[c];
+    if (sum / ROAM_LQI_SAMPLES >= ROAM_LQI_THRESHOLD) return;
+    uint8_t roamChannel = channelSelect(1);
+    if (roamChannel && roamChannel != currentChannel) {
+        currentChannel = roamChannel;
+        for (uint8_t c = 0; c < ROAM_LQI_SAMPLES; c++) roamLqi[c] = mLastLqi;
+    }
+}
 
 uint8_t slideShowCurrentImg = 0;
 uint8_t slideShowRefreshCount = 1;
@@ -127,6 +152,7 @@ void TagAssociated() {
         powerUp(INIT_RADIO);
         avail = getAvailDataInfo();
         powerDown(INIT_RADIO);
+        if (avail != NULL) roamAddLqi(mLastLqi);
 
         switch (wakeUpReason) {
             case WAKEUP_REASON_BUTTON1:
@@ -164,10 +190,7 @@ void TagAssociated() {
             }
             wakeUpReason = WAKEUP_REASON_TIMED;
         }
-        if (tagSettings.enableTagRoaming) {
-            uint8_t roamChannel = channelSelect(1);
-            if (roamChannel) currentChannel = roamChannel;
-        }
+        if (tagSettings.enableTagRoaming) roamIfWeak();
     } else {
         powerUp(INIT_RADIO);
 
@@ -179,6 +202,7 @@ void TagAssociated() {
 
         avail = getShortAvailDataInfo();
         powerDown(INIT_RADIO);
+        if (avail != NULL) roamAddLqi(mLastLqi);
     }
 
     addAverageValue();
