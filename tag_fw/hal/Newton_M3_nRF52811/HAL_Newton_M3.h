@@ -2,6 +2,7 @@
 #include "epd_spi.h"
 #include "eeprom_spi.h"
 #include "pinwake.h"
+#include "led.h"
 
 #define RADIO_FIRST_CHANNEL (11)  // 2.4-GHz channels start at 11
 
@@ -64,11 +65,12 @@
 #define EEPROM_SETTINGS_AREA_START 0
 
 void initRTC0(uint32_t ms);
+void initRTC0Ticks(uint32_t ticks);
 int8_t startHFCLK(void);
 uint8_t isHFCLKstable(void);
 void boardGetOwnMac(uint8_t *mac);
 void sleepForMs(uint32_t ms);
-void setled(uint64_t parta, u_int32_t partb);
+void sleepwithinterrupts(uint32_t sleepinterval);
 void resettimer();
 
 extern uint16_t batteryVoltage;

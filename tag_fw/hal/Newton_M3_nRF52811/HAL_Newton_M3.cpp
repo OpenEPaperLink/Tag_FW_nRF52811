@@ -7,7 +7,6 @@
 int8_t temperature = 0;
 uint16_t batteryVoltage = 0;
 uint32_t batteryRaw = 0;
-uint32_t flashposition = 0;
 bool lowBattery = false;
 bool disablePinInterruptSleep = false;
 
@@ -170,66 +169,11 @@ uint32_t sleepMsEntry = 0;
 uint32_t loops = 0;
 bool interrupted = false;
 
-// uint8_t ledcfg[12] = {0b00100010,0x78,0b00100100,5,0x03,0b01000011,1,0xC2,0b1100001,10,10,0};
-// uint8_t ledcfg[12] = {0b00010010,0x7D,0,0,0x03,0xE8,0,0,0,0,0,0};
-uint8_t ledcfg[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-void setled(uint64_t parta, u_int32_t partb) {
-    flashposition = 0;
-    ledcfg[0] = parta & 0xFF;
-    ledcfg[1] = (parta >> 8) & 0xFF;
-    ledcfg[2] = (parta >> 16) & 0xFF;
-    ledcfg[3] = (parta >> 24) & 0xFF;
-    ledcfg[4] = (parta >> 32) & 0xFF;
-    ledcfg[5] = (parta >> 40) & 0xFF;
-    ledcfg[6] = (parta >> 48) & 0xFF;
-    ledcfg[7] = (parta >> 56) & 0xFF;
-    ledcfg[8] = partb & 0xFF;
-    ledcfg[9] = (partb >> 8) & 0xFF;
-    ledcfg[10] = (partb >> 16) & 0xFF;
-    ledcfg[11] = (partb >> 24) & 0xFF;
-}
-
 void resettimer() {
     // tell the sleep function to net sleep again
     sleepMsEntry = sleepMsEntry - 999999999;
     loops = 0;
     interrupted = true;
-}
-
-void flashled(uint8_t color, uint8_t brightness) {
-    uint8_t colorred = (color >> 5) & 0b00000111;
-    uint8_t colorgreen = (color >> 2) & 0b00000111;
-    uint8_t colorblue = color & 0b00000011;
-    for (uint16_t i = 0; i < brightness; i++) {
-        digitalWrite(LED_RED, !(colorred >= 7));
-        digitalWrite(LED_GREEN, !(colorgreen >= 7));
-        digitalWrite(LED_BLUE, !(colorblue >= 3));
-        nrf_delay_us(100);
-        digitalWrite(LED_RED, !(colorred >= 1));
-        digitalWrite(LED_GREEN, !(colorgreen >= 1));
-        nrf_delay_us(100);
-        digitalWrite(LED_RED, !(colorred >= 6));
-        digitalWrite(LED_GREEN, !(colorgreen >= 6));
-        digitalWrite(LED_BLUE, !(colorblue >= 1));
-        nrf_delay_us(100);
-        digitalWrite(LED_RED, !(colorred >= 2));
-        digitalWrite(LED_GREEN, !(colorgreen >= 2));
-        nrf_delay_us(100);
-        digitalWrite(LED_RED, !(colorred >= 5));
-        digitalWrite(LED_GREEN, !(colorgreen >= 5));
-        nrf_delay_us(100);
-        digitalWrite(LED_RED, !(colorred >= 3));
-        digitalWrite(LED_GREEN, !(colorgreen >= 3));
-        digitalWrite(LED_BLUE, !(colorblue >= 2));
-        nrf_delay_us(100);
-        digitalWrite(LED_RED, !(colorred >= 4));
-        digitalWrite(LED_GREEN, !(colorgreen >= 4));
-        nrf_delay_us(100);
-        digitalWrite(LED_RED, HIGH);
-        digitalWrite(LED_GREEN, HIGH);
-        digitalWrite(LED_BLUE, HIGH);
-    }
 }
 
 void sleepwithinterrupts(uint32_t sleepinterval) {
@@ -249,76 +193,6 @@ void sleepwithinterrupts(uint32_t sleepinterval) {
     }
 }
 
-void ledflashlogic(uint32_t ms) {
-    watchdog_enable(ms + 1000);
-    uint8_t brightness = (ledcfg[0] >> 4 & 0b00001111) + 1;
-    uint8_t mode = ledcfg[0] & 0b00001111;
-    // lets not blink for short delays
-    if (ms < 2000) mode = 0;
-    if (mode == 1) {
-        interrupted = false;
-        uint8_t interloopdelayfactor = 100;
-        u_int8_t loopdelayfactor = 100;
-        uint8_t c1 = ledcfg[1];
-        uint8_t c2 = ledcfg[4];
-        uint8_t c3 = ledcfg[7];
-        uint8_t loop1delay = (ledcfg[2] >> 4) & 0b00001111;
-        uint8_t loop2delay = (ledcfg[5] >> 4) & 0b00001111;
-        uint8_t loop3delay = (ledcfg[8] >> 4) & 0b00001111;
-        uint8_t loopcnt1 = ledcfg[2] & 0b00001111;
-        uint8_t loopcnt2 = ledcfg[5] & 0b00001111;
-        uint8_t loopcnt3 = ledcfg[8] & 0b00001111;
-        uint8_t ildelay1 = ledcfg[3];
-        uint8_t ildelay2 = ledcfg[6];
-        uint8_t ildelay3 = ledcfg[9];
-        uint8_t grouprepeats = ledcfg[10] + 1;
-        uint8_t spare = ledcfg[11];
-        uint32_t fulllooptime1 = loopcnt1 * loop1delay * loopdelayfactor + ildelay1 * interloopdelayfactor;
-        uint32_t fulllooptime2 = loopcnt2 * loop2delay * loopdelayfactor + ildelay2 * interloopdelayfactor;
-        uint32_t fulllooptime3 = loopcnt3 * loop3delay * loopdelayfactor + ildelay3 * interloopdelayfactor;
-        uint32_t looptimesum = fulllooptime1 + fulllooptime2 + fulllooptime3;
-        if (looptimesum == 0) looptimesum = 2;
-        int fittingrepeats = (int)ms / looptimesum;
-
-        for (int j = 0; j < fittingrepeats; j++) {
-            if (flashposition >= grouprepeats && grouprepeats != 255) {
-                brightness = 0;
-                ledcfg[0] = 0x00;
-                flashposition = 0;
-            }
-            if (!interrupted) {
-                for (int i = 0; i < loopcnt1; i++) {
-                    flashled(c1, brightness);
-                    sleepwithinterrupts(loop1delay * loopdelayfactor);
-                    if (interrupted) break;
-                }
-                sleepwithinterrupts(ildelay1 * interloopdelayfactor);
-            }
-            if (!interrupted) {
-                for (int i = 0; i < loopcnt2; i++) {
-                    flashled(c2, brightness);
-                    sleepwithinterrupts(loop2delay * loopdelayfactor);
-                    if (interrupted) break;
-                }
-                sleepwithinterrupts(ildelay2 * interloopdelayfactor);
-            }
-
-            if (!interrupted) {
-                for (int i = 0; i < loopcnt3; i++) {
-                    flashled(c3, brightness);
-                    sleepwithinterrupts(loop3delay * loopdelayfactor);
-                    if (interrupted) break;
-                }
-                sleepwithinterrupts(ildelay3 * interloopdelayfactor);
-            }
-            if (interrupted) break;
-            flashposition++;
-        }
-        if (interrupted) ledcfg[0] = 0x00;
-    } else
-        sleepwithinterrupts(ms);
-}
-
 void sleepForMs(uint32_t ms) {
     // Turn everything off for minimal deep sleep current
     radioRxEnable(0);
@@ -331,15 +205,15 @@ void sleepForMs(uint32_t ms) {
         ;
     Serial.end();
     yield();
-    // led and sleep stuff
-    ledflashlogic(ms);
+    // sleep, playing the LED pattern if there is one
+    ledSleep(ms);
     // we have to restart the serial
     Serial.begin(115200);
 }
 
 #define LF_FREQUENCY 32768UL
 #define RTC_MAX_SLEEP_MS 500000UL  // the RTC compare value has 24 bits: at most 512 s ahead
-uint32_t wakeUpSeconds = 500;      // in ms
+static uint32_t wakeUpTicks = 2;
 
 // RTC ticks for ms milliseconds, at least 2: a compare value closer than that to the counter may not trigger
 static uint32_t msToRtcTicks(uint32_t ms) {
@@ -347,18 +221,24 @@ static uint32_t msToRtcTicks(uint32_t ms) {
     return ticks < 2 ? 2 : ticks;
 }
 
-void initRTC0(uint32_t ms) {
+// Wakes us up after 'ticks' of the 32768 Hz clock, for waits shorter than a ms too
+void initRTC0Ticks(uint32_t ticks) {
     NVIC_DisableIRQ(RTC0_IRQn);
     NVIC_ClearPendingIRQ(RTC0_IRQn);
     NVIC_SetPriority(RTC0_IRQn, 15);
     NRF_RTC0->PRESCALER = 0;
     NRF_RTC0->INTENSET = RTC_EVTENSET_COMPARE0_Enabled << RTC_EVTENSET_COMPARE0_Pos;
     NRF_RTC0->EVTENSET = RTC_INTENSET_COMPARE0_Enabled << RTC_INTENSET_COMPARE0_Pos;
-    // a longer sleep is done in parts: sleepwithinterrupts() starts the timer again for the rest
-    wakeUpSeconds = ms > RTC_MAX_SLEEP_MS ? RTC_MAX_SLEEP_MS : ms;
-    NRF_RTC0->CC[0] = (NRF_RTC0->COUNTER + msToRtcTicks(wakeUpSeconds)) & RTC_COUNTER_COUNTER_Msk;
+    // a compare value closer than 2 ticks to the counter may not trigger
+    wakeUpTicks = ticks < 2 ? 2 : ticks;
+    NRF_RTC0->CC[0] = (NRF_RTC0->COUNTER + wakeUpTicks) & RTC_COUNTER_COUNTER_Msk;
     NVIC_EnableIRQ(RTC0_IRQn);
     NRF_RTC0->TASKS_START = 1;
+}
+
+void initRTC0(uint32_t ms) {
+    // a longer sleep is done in parts: sleepwithinterrupts() starts the timer again for the rest
+    initRTC0Ticks(msToRtcTicks(ms > RTC_MAX_SLEEP_MS ? RTC_MAX_SLEEP_MS : ms));
 }
 
 #ifdef __cplusplus
@@ -368,7 +248,7 @@ void RTC0_IRQHandler(void) {
     volatile uint32_t dummy;
     if (NRF_RTC0->EVENTS_COMPARE[0] == 1) {
         NRF_RTC0->EVENTS_COMPARE[0] = 0;
-        NRF_RTC0->CC[0] = (NRF_RTC0->COUNTER + msToRtcTicks(wakeUpSeconds)) & RTC_COUNTER_COUNTER_Msk;
+        NRF_RTC0->CC[0] = (NRF_RTC0->COUNTER + wakeUpTicks) & RTC_COUNTER_COUNTER_Msk;
         dummy = NRF_RTC0->EVENTS_COMPARE[0];
         dummy;
         NRF_RTC0->TASKS_STOP = 1;
