@@ -101,7 +101,7 @@ static bool radioPrvRxEnable(void)  // knows that radio is in disabled state
 }
 
 bool radioSetChannel(uint_fast8_t channel) {
-    if (channel < 11 || channel > 26)
+    if (channel < 11 || channel > 27)
         return false;
     NRF_RADIO->FREQUENCY = 5 * (channel - 10);
     return true;
