@@ -22,6 +22,8 @@ uint8_t getFirstWakeUpReason();
 #define TAG_MODE_CHANSEARCH 0
 #define TAG_MODE_ASSOCIATED 1
 
+#define STRONG_AP_LQI 200  // the channel scan stops after a round in which an AP was heard at least this well
+
 uint8_t currentTagMode = TAG_MODE_CHANSEARCH; 
 
 uint8_t slideShowCurrentImg = 0;
@@ -45,12 +47,16 @@ uint8_t channelSelect(uint8_t rounds) {  // returns 0 if no accesspoints were fo
     memset(result, 0, sizeof(result));
 
     for (uint8_t i = 0; i < rounds; i++) {
+        uint8_t bestLqi = 0;
         for (uint8_t c = 0; c < sizeof(channelList); c++) {
             if (detectAP(channelList[c])) {
                 if (mLastLqi > result[c]) result[c] = mLastLqi;
                 if (rounds > 2) printf("Channel: %d - LQI: %d RSSI %d\n", channelList[c], mLastLqi, mLastRSSI);
             }
+            if (result[c] > bestLqi) bestLqi = result[c];
         }
+        // more rounds only help to choose between weak APs
+        if (bestLqi >= STRONG_AP_LQI) break;
     }
     powerDown(INIT_RADIO);
     uint8_t highestLqi = 0;
@@ -432,6 +438,25 @@ void executeCommand(uint8_t cmd) {
     }
 }
 
+// The first check-in after boot. Returns true when the AP had something for the tag, which is then processed
+// (an image is drawn). The 'Booting' check-in makes the AP render the content again, hence a few short retries.
+bool bootCheckIn() {
+    for (uint8_t attempt = 0; attempt < 3; attempt++) {
+        if (attempt) doSleep(2000UL);
+        powerUp(INIT_RADIO);
+        struct AvailDataInfo *avail = getAvailDataInfo();
+        powerDown(INIT_RADIO);
+        if (avail == NULL) continue;
+        // the AP knows now that we booted
+        wakeUpReason = WAKEUP_REASON_TIMED;
+        if (avail->dataType != DATATYPE_NOUPDATE) {
+            processAvailDataInfo(avail);
+            return true;
+        }
+    }
+    return false;
+}
+
 void mainLoop() {
     while (1) {
         powerUp(INIT_UART);
@@ -538,10 +563,7 @@ void loop() {
     }
 
     wdt30s();
-    powerUp(INIT_EPD);
     if (currentChannel) {
-        if (!displayCustomImage(CUSTOM_IMAGE_APFOUND)) showAPFound();
-        powerDown(INIT_EPD);
         initPowerSaving(INTERVAL_BASE);
         currentTagMode = TAG_MODE_ASSOCIATED;
 
@@ -549,8 +571,14 @@ void loop() {
         writeSettings();
         powerDown(INIT_EEPROM);
 
-        doSleep(5000UL);
+        // check in right away: when the AP has something for us, drawing that shows the AP was found
+        if (!bootCheckIn()) {
+            powerUp(INIT_EPD);
+            if (!displayCustomImage(CUSTOM_IMAGE_APFOUND)) showAPFound();
+            powerDown(INIT_EPD);
+        }
     } else {
+        powerUp(INIT_EPD);
         if (!displayCustomImage(CUSTOM_IMAGE_NOAPFOUND)) showNoAP();
         powerDown(INIT_EPD);
         initPowerSaving(INTERVAL_AT_MAX_ATTEMPTS);
