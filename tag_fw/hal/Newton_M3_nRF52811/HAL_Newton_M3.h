@@ -62,8 +62,6 @@
 #define DBG_RXD 26
 #define DBG_TEST 27
 
-#define EEPROM_SETTINGS_AREA_START 0
-
 void initRTC0(uint32_t ms);
 void initRTC0Ticks(uint32_t ticks);
 int8_t startHFCLK(void);
