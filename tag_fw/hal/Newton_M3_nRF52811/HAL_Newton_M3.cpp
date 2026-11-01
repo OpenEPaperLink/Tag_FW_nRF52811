@@ -154,11 +154,15 @@ void boardGetOwnMac(uint8_t *mac) {
     mac[0] += cksum & 0x0F;
 }
 
+// CRV, RREN and CONFIG can't be changed once the watchdog runs, so the first call (wdt30s() at boot) sets the
+// timeout for good and every later call only reloads it. The watchdog pauses while the CPU sleeps.
 void watchdog_enable(int timeout) {
-    NRF_WDT->CONFIG = NRF_WDT->CONFIG = (WDT_CONFIG_HALT_Pause << WDT_CONFIG_HALT_Pos) | (WDT_CONFIG_SLEEP_Pause << WDT_CONFIG_SLEEP_Pos);
-    NRF_WDT->CRV = (32768 * timeout) / 1000;
-    NRF_WDT->RREN |= WDT_RREN_RR0_Msk;
-    NRF_WDT->TASKS_START = 1;
+    if (!NRF_WDT->RUNSTATUS) {
+        NRF_WDT->CONFIG = (WDT_CONFIG_HALT_Pause << WDT_CONFIG_HALT_Pos) | (WDT_CONFIG_SLEEP_Pause << WDT_CONFIG_SLEEP_Pos);
+        NRF_WDT->CRV = (uint32_t)(((uint64_t)32768 * (uint32_t)timeout) / 1000);
+        NRF_WDT->RREN = WDT_RREN_RR0_Msk;
+        NRF_WDT->TASKS_START = 1;
+    }
     NRF_WDT->RR[0] = WDT_RR_RR_Reload;
 }
 
