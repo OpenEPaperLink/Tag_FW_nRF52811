@@ -112,13 +112,12 @@ void epd_busy() {
 void epdBusyWaitFalling(uint32_t timeout) {
     uint32_t start = millis();
     wdt120s();
-    attachInterrupt(digitalPinToInterrupt(EPD_BUSY), epd_busy, FALLING);
-    NRF_GPIO->PIN_CNF[EPD_BUSY] &= ~((uint32_t)GPIO_PIN_CNF_SENSE_Msk);
-    NRF_GPIO->PIN_CNF[EPD_BUSY] |= ((uint32_t)GPIO_PIN_CNF_SENSE_Low << GPIO_PIN_CNF_SENSE_Pos);
+    pinWakeAttach(EPD_BUSY, epd_busy, false);
     // Past the timeout the wait goes on, because some drivers pass a short one and count on that. It goes on
     // sleeping instead of spinning, and only up to EPD_BUSY_MAX_MS: a display that stays busy doesn't keep the
     // CPU running until the watchdog resets the tag.
     while (true) {
+        pinWakeArm();
         initRTC0(100);
         __WFE();
         __SEV();
@@ -134,20 +133,20 @@ void epdBusyWaitFalling(uint32_t timeout) {
             break;
         }
     }
+    pinWakeDetach(EPD_BUSY);
     wdt30s();
 }
 
 void epdBusyWaitRising(uint32_t timeout) {
     uint32_t start = millis();
     wdt120s();
-    attachInterrupt(digitalPinToInterrupt(EPD_BUSY), epd_busy, RISING);
-    NRF_GPIO->PIN_CNF[EPD_BUSY] &= ~((uint32_t)GPIO_PIN_CNF_SENSE_Msk);
-    NRF_GPIO->PIN_CNF[EPD_BUSY] |= ((uint32_t)GPIO_PIN_CNF_SENSE_High << GPIO_PIN_CNF_SENSE_Pos);
+    pinWakeAttach(EPD_BUSY, epd_busy, true);
 
     // Past the timeout the wait goes on, because some drivers pass a short one and count on that. It goes on
     // sleeping instead of spinning, and only up to EPD_BUSY_MAX_MS: a display that stays busy doesn't keep the
     // CPU running until the watchdog resets the tag.
     while (true) {
+        pinWakeArm();
         initRTC0(100);
         __WFE();
         __SEV();
@@ -163,6 +162,7 @@ void epdBusyWaitRising(uint32_t timeout) {
             break;
         }
     }
+    pinWakeDetach(EPD_BUSY);
     wdt30s();
 }
 

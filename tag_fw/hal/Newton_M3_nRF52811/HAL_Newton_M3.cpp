@@ -236,15 +236,8 @@ void sleepwithinterrupts(uint32_t sleepinterval) {
     yield();
     sleepMsEntry = millis();
 
-    // disable GPIOTE
-    if (disablePinInterruptSleep) {
-        for (uint8_t c = 0; c < 8; c++) {
-            for (uint8_t d = 0; d < 32; d++) {
-                uint32_t e = ((uint32_t)d) << 8;
-                NRF_GPIOTE->CONFIG[c] = e;
-            }
-        }
-    }
+    // pins that woke us up before can wake us up again
+    if (!disablePinInterruptSleep) pinWakeArm();
 
     // other interrupts wake us up early: sleep again for the time that is left
     uint32_t elapsed;
