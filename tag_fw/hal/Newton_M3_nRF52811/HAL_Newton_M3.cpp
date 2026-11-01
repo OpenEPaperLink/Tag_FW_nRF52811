@@ -246,9 +246,10 @@ void sleepwithinterrupts(uint32_t sleepinterval) {
         }
     }
 
-    // sometimes we wake up early
-    while (millis() - sleepMsEntry < sleepinterval) {
-        initRTC0(sleepinterval);
+    // other interrupts wake us up early: sleep again for the time that is left
+    uint32_t elapsed;
+    while ((elapsed = millis() - sleepMsEntry) < sleepinterval) {
+        initRTC0(sleepinterval - elapsed);
         __WFE();
         __SEV();
         __WFE();
@@ -344,8 +345,14 @@ void sleepForMs(uint32_t ms) {
 }
 
 #define LF_FREQUENCY 32768UL
-#define SECONDS(x) ((uint32_t)((LF_FREQUENCY * (float)((float)x / (float)1000)) + 0.5))
-uint32_t wakeUpSeconds = 500;
+#define RTC_MAX_SLEEP_MS 500000UL  // the RTC compare value has 24 bits: at most 512 s ahead
+uint32_t wakeUpSeconds = 500;      // in ms
+
+// RTC ticks for ms milliseconds, at least 2: a compare value closer than that to the counter may not trigger
+static uint32_t msToRtcTicks(uint32_t ms) {
+    uint32_t ticks = (uint32_t)(((uint64_t)ms * LF_FREQUENCY + 500) / 1000);
+    return ticks < 2 ? 2 : ticks;
+}
 
 void initRTC0(uint32_t ms) {
     NVIC_DisableIRQ(RTC0_IRQn);
@@ -354,8 +361,9 @@ void initRTC0(uint32_t ms) {
     NRF_RTC0->PRESCALER = 0;
     NRF_RTC0->INTENSET = RTC_EVTENSET_COMPARE0_Enabled << RTC_EVTENSET_COMPARE0_Pos;
     NRF_RTC0->EVTENSET = RTC_INTENSET_COMPARE0_Enabled << RTC_INTENSET_COMPARE0_Pos;
-    wakeUpSeconds = ms;
-    NRF_RTC0->CC[0] = NRF_RTC0->COUNTER + SECONDS(wakeUpSeconds);
+    // a longer sleep is done in parts: sleepwithinterrupts() starts the timer again for the rest
+    wakeUpSeconds = ms > RTC_MAX_SLEEP_MS ? RTC_MAX_SLEEP_MS : ms;
+    NRF_RTC0->CC[0] = (NRF_RTC0->COUNTER + msToRtcTicks(wakeUpSeconds)) & RTC_COUNTER_COUNTER_Msk;
     NVIC_EnableIRQ(RTC0_IRQn);
     NRF_RTC0->TASKS_START = 1;
 }
@@ -367,7 +375,7 @@ void RTC0_IRQHandler(void) {
     volatile uint32_t dummy;
     if (NRF_RTC0->EVENTS_COMPARE[0] == 1) {
         NRF_RTC0->EVENTS_COMPARE[0] = 0;
-        NRF_RTC0->CC[0] = NRF_RTC0->COUNTER + SECONDS(wakeUpSeconds);
+        NRF_RTC0->CC[0] = (NRF_RTC0->COUNTER + msToRtcTicks(wakeUpSeconds)) & RTC_COUNTER_COUNTER_Msk;
         dummy = NRF_RTC0->EVENTS_COMPARE[0];
         dummy;
         NRF_RTC0->TASKS_STOP = 1;
