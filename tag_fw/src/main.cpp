@@ -159,7 +159,7 @@ void TagAssociated() {
             }
 
             // since we've had succesful contact, and communicated the wakeup reason succesfully, we can now reset to the 'normal' status
-            if ((wakeUpReason == WAKEUP_REASON_GPIO) | (wakeUpReason == WAKEUP_REASON_BUTTON1) | (wakeUpReason == WAKEUP_REASON_BUTTON2) | (wakeUpReason == WAKEUP_REASON_NFC) | (wakeUpReason == CUSTOM_IMAGE_RF_WAKE)) {
+            if ((wakeUpReason == WAKEUP_REASON_GPIO) | (wakeUpReason == WAKEUP_REASON_BUTTON1) | (wakeUpReason == WAKEUP_REASON_BUTTON2) | (wakeUpReason == WAKEUP_REASON_NFC) | (wakeUpReason == WAKEUP_REASON_RF)) {
                 buttonCheckOut = true;
             }
             wakeUpReason = WAKEUP_REASON_TIMED;
