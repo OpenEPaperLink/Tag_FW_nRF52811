@@ -163,6 +163,10 @@ bool radioInit(void) {
     return radioSetChannel(11);
 }
 
+bool radioRxPending(void) {
+    return mRxNumGot != 0;
+}
+
 int32_t radioRxDequeuePkt(void *dstBuf, uint32_t maxLen, int8_t *rssiP, uint8_t *lqiP) {
     uint32_t len, copyLen = maxLen;
 
