@@ -109,61 +109,45 @@ void epdConfigGPIO(bool setup) {
 void epd_busy() {
 }
 
-void epdBusyWaitFalling(uint32_t timeout) {
+// Waits until EPD_BUSY is at the 'ready' level. Past the timeout the wait goes on, because some drivers pass a short
+// one and count on that, but only up to EPD_BUSY_MAX_MS: a display that stays busy doesn't keep the tag waiting until
+// the watchdog resets it. The CPU sleeps, woken by the pin or every 100 ms. A refresh takes seconds: the crystal
+// oscillator and the UART are stopped meanwhile, so nothing may be printed until they are back.
+static void epdBusyWait(bool readyHigh, uint32_t timeout) {
     uint32_t start = millis();
+    uint32_t waited = 0;
+    bool timedOut = false;
     wdt120s();
-    pinWakeAttach(EPD_BUSY, epd_busy, false);
-    // Past the timeout the wait goes on, because some drivers pass a short one and count on that. It goes on
-    // sleeping instead of spinning, and only up to EPD_BUSY_MAX_MS: a display that stays busy doesn't keep the
-    // CPU running until the watchdog resets the tag.
+    pinWakeAttach(EPD_BUSY, epd_busy, readyHigh);
+    Serial.end();
+    NRF_CLOCK->TASKS_HFCLKSTOP = 1;
     while (true) {
         pinWakeArm();
         initRTC0(100);
         __WFE();
         __SEV();
         __WFE();
-        if (!digitalRead(EPD_BUSY)) break;
-        uint32_t waited = millis() - start;
-        if (timeout && waited >= timeout) {
-            printf("screen timeout %lu ms :(\n", waited);
-            timeout = 0;
-        }
-        if (waited >= EPD_BUSY_MAX_MS) {
-            printf("screen still busy after %lu ms, giving up\n", waited);
-            break;
-        }
+        if (digitalRead(EPD_BUSY) == readyHigh) break;
+        waited = millis() - start;
+        if (timeout && waited >= timeout) timedOut = true;
+        if (waited >= EPD_BUSY_MAX_MS) break;
     }
+    Serial.begin(115200);
     pinWakeDetach(EPD_BUSY);
+    if (waited >= EPD_BUSY_MAX_MS) {
+        printf("screen still busy after %lu ms, giving up\n", waited);
+    } else if (timedOut) {
+        printf("screen timeout %lu ms :(\n", millis() - start);
+    }
     wdt30s();
 }
 
-void epdBusyWaitRising(uint32_t timeout) {
-    uint32_t start = millis();
-    wdt120s();
-    pinWakeAttach(EPD_BUSY, epd_busy, true);
+void epdBusyWaitFalling(uint32_t timeout) {
+    epdBusyWait(false, timeout);
+}
 
-    // Past the timeout the wait goes on, because some drivers pass a short one and count on that. It goes on
-    // sleeping instead of spinning, and only up to EPD_BUSY_MAX_MS: a display that stays busy doesn't keep the
-    // CPU running until the watchdog resets the tag.
-    while (true) {
-        pinWakeArm();
-        initRTC0(100);
-        __WFE();
-        __SEV();
-        __WFE();
-        if (digitalRead(EPD_BUSY)) break;
-        uint32_t waited = millis() - start;
-        if (timeout && waited >= timeout) {
-            printf("screen timeout %lu ms :(\n", waited);
-            timeout = 0;
-        }
-        if (waited >= EPD_BUSY_MAX_MS) {
-            printf("screen still busy after %lu ms, giving up\n", waited);
-            break;
-        }
-    }
-    pinWakeDetach(EPD_BUSY);
-    wdt30s();
+void epdBusyWaitRising(uint32_t timeout) {
+    epdBusyWait(true, timeout);
 }
 
 static uint16_t epdSPIXferBytes;
