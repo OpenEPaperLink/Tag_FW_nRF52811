@@ -247,7 +247,8 @@ void powerUp(const uint8_t parts) {
         wdt30s();
     }
 
-    if (parts & INIT_EPD) {
+    // without a known display (empty or unknown UICR) the EPD pins are left alone: they may be wired to something else
+    if ((parts & INIT_EPD) && tag.uicrValid) {
         configSPI(true);
         epdConfigGPIO(true);
         epdSetup();
@@ -302,7 +303,7 @@ void powerDown(const uint8_t parts) {
         eepromPrvDeselect();
         configEEPROM(false);
     }
-    if (parts & INIT_EPD) {
+    if ((parts & INIT_EPD) && tag.uicrValid) {
         epdEnterSleep();
         epdConfigGPIO(false);
     }

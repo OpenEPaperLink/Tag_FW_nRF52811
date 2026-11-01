@@ -27,5 +27,6 @@ void selectLUT(uint8_t lut);
 #include "uc8159_var.h"
 #include "uc8179.h"
 #include "uc_variant_bwry.h"
+#include "epdnone.h"
 
 #endif

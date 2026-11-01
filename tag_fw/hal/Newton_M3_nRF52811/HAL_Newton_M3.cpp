@@ -139,10 +139,13 @@ void getTemperature() {
 void boardGetOwnMac(uint8_t *mac) {
     mac[0] = tag.macSuffix & 0xFF;
     mac[1] = tag.macSuffix >> 8;
-    mac[2] = (NRF_UICR->CUSTOMER[0]) & 0xFF;
-    mac[3] = (NRF_UICR->CUSTOMER[0] >> 8) & 0xFF;
-    mac[4] = (NRF_UICR->CUSTOMER[0] >> 16) & 0xFF;
-    mac[5] = (NRF_UICR->CUSTOMER[0] >> 24);
+    // the MAC comes from the UICR; an empty UICR has none, then the chip's device ID keeps tags apart
+    uint32_t id = NRF_UICR->CUSTOMER[0];
+    if (id == 0xFFFFFFFF) id = NRF_FICR->DEVICEID[0];
+    mac[2] = id & 0xFF;
+    mac[3] = (id >> 8) & 0xFF;
+    mac[4] = (id >> 16) & 0xFF;
+    mac[5] = id >> 24;
     mac[6] = 0;
     mac[7] = 0;
     uint8_t cksum = 0;

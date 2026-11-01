@@ -126,6 +126,7 @@ struct tagSpecs {
     uint8_t OEPLtype = 0;
     uint8_t solumType = 0;
     uint32_t imageSize = 0;
+    bool uicrValid = true;  // false: empty or unknown UICR, the tag runs without a display
     extraButtons customSetup;
 };
 
