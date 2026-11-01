@@ -104,6 +104,8 @@ void epdConfigGPIO(bool setup) {
     epdGPIOActive = setup;
 }
 
+#define EPD_BUSY_MAX_MS 180000UL  // a display busy for longer than this is taken as broken
+
 void epd_busy() {
 }
 
@@ -113,23 +115,26 @@ void epdBusyWaitFalling(uint32_t timeout) {
     attachInterrupt(digitalPinToInterrupt(EPD_BUSY), epd_busy, FALLING);
     NRF_GPIO->PIN_CNF[EPD_BUSY] &= ~((uint32_t)GPIO_PIN_CNF_SENSE_Msk);
     NRF_GPIO->PIN_CNF[EPD_BUSY] |= ((uint32_t)GPIO_PIN_CNF_SENSE_Low << GPIO_PIN_CNF_SENSE_Pos);
-    while (millis() - start < timeout) {
+    // Past the timeout the wait goes on, because some drivers pass a short one and count on that. It goes on
+    // sleeping instead of spinning, and only up to EPD_BUSY_MAX_MS: a display that stays busy doesn't keep the
+    // CPU running until the watchdog resets the tag.
+    while (true) {
         initRTC0(100);
         __WFE();
         __SEV();
         __WFE();
-        if (!digitalRead(EPD_BUSY)) {
-            wdt30s();
-            return;
+        if (!digitalRead(EPD_BUSY)) break;
+        uint32_t waited = millis() - start;
+        if (timeout && waited >= timeout) {
+            printf("screen timeout %lu ms :(\n", waited);
+            timeout = 0;
         }
-    }
-    printf("screen timeout %lu ms :(\n", millis() - start);
-    while (1) {
-        if (!digitalRead(EPD_BUSY)) {
-            wdt30s();
+        if (waited >= EPD_BUSY_MAX_MS) {
+            printf("screen still busy after %lu ms, giving up\n", waited);
             break;
         }
     }
+    wdt30s();
 }
 
 void epdBusyWaitRising(uint32_t timeout) {
@@ -139,25 +144,26 @@ void epdBusyWaitRising(uint32_t timeout) {
     NRF_GPIO->PIN_CNF[EPD_BUSY] &= ~((uint32_t)GPIO_PIN_CNF_SENSE_Msk);
     NRF_GPIO->PIN_CNF[EPD_BUSY] |= ((uint32_t)GPIO_PIN_CNF_SENSE_High << GPIO_PIN_CNF_SENSE_Pos);
 
-    while (millis() - start < timeout) {
+    // Past the timeout the wait goes on, because some drivers pass a short one and count on that. It goes on
+    // sleeping instead of spinning, and only up to EPD_BUSY_MAX_MS: a display that stays busy doesn't keep the
+    // CPU running until the watchdog resets the tag.
+    while (true) {
         initRTC0(100);
         __WFE();
         __SEV();
         __WFE();
-        if (digitalRead(EPD_BUSY)) {
-            wdt30s();
-            digitalPinToInterrupt(EPD_BUSY);
-            return;
+        if (digitalRead(EPD_BUSY)) break;
+        uint32_t waited = millis() - start;
+        if (timeout && waited >= timeout) {
+            printf("screen timeout %lu ms :(\n", waited);
+            timeout = 0;
         }
-    }
-    printf("screen timeout %lu ms :(\n", millis() - start);
-    while (1) {
-        if (digitalRead(EPD_BUSY)) {
-            printf("Screen done %lu ms\n", millis() - start);
-            wdt30s();
+        if (waited >= EPD_BUSY_MAX_MS) {
+            printf("screen still busy after %lu ms, giving up\n", waited);
             break;
         }
     }
+    wdt30s();
 }
 
 static uint16_t epdSPIXferBytes;
