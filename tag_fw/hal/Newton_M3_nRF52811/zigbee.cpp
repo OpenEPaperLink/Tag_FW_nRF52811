@@ -69,12 +69,15 @@ void __attribute__((used)) RADIO_IRQHandler(void) {
         ;
 
     crcOk = (NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk;
-    rxedPkt[len] = NRF_RADIO->RSSISAMPLE;
+    // a packet with a bad CRC is dropped: the buffer is used again for the next one
+    if (crcOk) {
+        rxedPkt[len] = NRF_RADIO->RSSISAMPLE;
 
-    mRxNumFree--;
-    if (++mRxNextWrite == MAX_RX_PKTS)
-        mRxNextWrite = 0;
-    mRxNumGot++;
+        mRxNumFree--;
+        if (++mRxNextWrite == MAX_RX_PKTS)
+            mRxNextWrite = 0;
+        mRxNumGot++;
+    }
 
     NRF_RADIO->EVENTS_END = 0;
     (void)NRF_RADIO->EVENTS_END;
