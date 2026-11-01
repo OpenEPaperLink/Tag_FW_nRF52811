@@ -154,13 +154,9 @@ static void eepromPrvSfdpRead(uint16_t ofst, uint8_t *dst, uint8_t len) {
     eepromPrvDeselect();
 }
 
-boolean eepromInit(void) {
+static boolean eepromPrvParse(void) {
     uint8_t buf[8];
     uint8_t i, nParamHdrs;
-
-    eepromPrvWakeFromPowerdown();
-    delay(1);
-    eepromPrvWakeFromPowerdown();
 
     // process SFDP
 
@@ -296,6 +292,17 @@ boolean eepromInit(void) {
 
     printf("SFDP: no JEDEC table of expected version found\n");
     return false;
+}
+
+// The chip parameters (size, erase opcodes) don't change: read them once, after that only wake the chip up
+boolean eepromInit(void) {
+    static boolean known = false;
+
+    eepromPrvWakeFromPowerdown();
+    delay(1);
+    eepromPrvWakeFromPowerdown();
+    if (!known) known = eepromPrvParse();
+    return known;
 }
 
 bool eepromWrite(uint32_t addr, const void *srcP, uint16_t len) {
