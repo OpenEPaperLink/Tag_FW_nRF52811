@@ -11,7 +11,9 @@
 #include "wdt.h"
 
 #include "drawing.h"
-#include "unissd.h"
+#include "eeprom.h"
+#include "userinterface.h"
+#include "epd_interface.h"
 
 #define CMD_DRV_OUTPUT_CTRL 0x01
 #define CMD_SOFT_START_CTRL 0x0C
@@ -47,6 +49,235 @@
 #define SCREEN_CMD_LOAD_LUT 0x10
 #define SCREEN_CMD_USE_MODE_2 0x08  // modified commands 0x10 and 0x04
 #define SCREEN_CMD_REFRESH 0xC7
+
+// Fast updates on the M3 2.9" BWR (controller 0x15).
+// Its waveform register (write 0x32, read 0x33) holds 257 bytes, not the 70 of the SSD1619A datasheet: 4 blocks of 56,
+// one per LUT (block 3 for R=0/BW=0, 2 for R=0/BW=1, 1 for R=1, 0 unused), each 8 groups of
+// [repeat, phase A, B, C, D, 1, 1] with phase bytes of voltage << 6 | frames (VSS, VSH1, VSL, VSH2). The timing is
+// the same in every block. Bytes 224-256 hold the voltages and other settings, which stay as loaded from OTP.
+// A fast update drives only the pixels that turn black or white: short shakes and pulses in that direction.
+// The black and white waveforms mirror each other and those turns alternate for every pixel, so no DC builds up. Pixels that stay the same,
+// and red ones, get R=1: a block that does nothing. That needs the image on the screen: it is drawn into the
+// display's memory first, then read back line by line while the new image is written. Red can't change this way;
+// if it does, the update becomes a full refresh. Other full refreshes are up to the AP (LUT 0); after a reboot the
+// image on the screen isn't known, so the first image is always drawn with a full refresh.
+#define WS_LEN 257
+#define WS_BLOCK 56
+#define WS_GROUP 7
+#define WS_BLACK 3
+#define WS_WHITE 2
+#define WS_VSH1 229
+#define WS_VSL 231
+#define WS_FRAMES_ROOM 876        // OTP waveform length around 21 C, the temperature the pulse lengths were tuned at
+#define PHASE(v, t) (((v) << 6) | (t))
+#define V_VSH1 1
+#define V_VSL 2
+
+static uint32_t shownAddr = 0xFFFFFFFF;  // image on the screen, if drawn from flash without anything over it
+static struct EepromImageHeader shownHeader;
+static uint8_t *ws = nullptr;  // waveform for the fast update being drawn
+
+// reading on the data line, at up to 2.5 MHz
+static inline void clkDelay() {
+    for (uint8_t i = 0; i < 4; i++) __NOP();
+}
+
+static void readBegin(uint8_t cmd) {
+    epdHardSPI(false);
+    digitalWrite(EPD_DC, LOW);
+    digitalWrite(EPD_CS, LOW);
+    for (int8_t i = 7; i >= 0; i--) {
+        digitalWrite(EPD_CLK, LOW);
+        digitalWrite(EPD_MOSI, (cmd >> i) & 1);
+        delayMicroseconds(1);
+        digitalWrite(EPD_CLK, HIGH);
+        delayMicroseconds(1);
+    }
+    digitalWrite(EPD_CLK, LOW);
+    digitalWrite(EPD_DC, HIGH);
+    pinMode(EPD_MOSI, INPUT);
+    delayMicroseconds(1);
+}
+
+static void readBytes(uint8_t *buf, uint16_t len) {
+    for (uint16_t n = 0; n < len; n++) {
+        uint8_t b = 0;
+        for (uint8_t i = 0; i < 8; i++) {
+            NRF_P0->OUTCLR = 1UL << EPD_CLK;
+            clkDelay();
+            NRF_P0->OUTSET = 1UL << EPD_CLK;
+            clkDelay();
+            b = (b << 1) | ((NRF_P0->IN >> EPD_MOSI) & 1);
+        }
+        buf[n] = b;
+    }
+}
+
+static void readEnd() {
+    digitalWrite(EPD_CS, HIGH);
+    pinMode(EPD_MOSI, OUTPUT);
+    digitalWrite(EPD_CLK, LOW);
+    epdHardSPI(true);
+}
+
+// loads the OTP waveform for the current temperature and turns it into the one for a fast update
+static bool fastWaveform(uint8_t lut) {
+    uint32_t frames = 0;
+    epdWrite(0x18, 1, 0x80);
+    epdWrite(0x22, 1, 0xB1);
+    epdWrite(0x20, 0);
+    epdBusyWaitFalling(1000);
+    ws = (uint8_t *)malloc(WS_LEN);
+    if (!ws) return false;
+    readBegin(0x33);
+    readBytes(ws, WS_LEN);
+    readEnd();
+
+    // only a register laid out as described above
+    for (uint8_t g = 0; g < 8; g++) {
+        uint8_t *grp = ws + g * WS_GROUP;
+        uint16_t len = 0;
+        for (uint8_t p = 1; p <= 4; p++) {
+            if (grp[p] & 0xC0) goto bad;
+            len += grp[p];
+            for (uint8_t b = 1; b < 4; b++)
+                if ((grp[b * WS_BLOCK + p] & 0x3F) != grp[p]) goto bad;
+        }
+        for (uint8_t b = 1; b < 4; b++)
+            if (grp[b * WS_BLOCK] != grp[0]) goto bad;
+        frames += grp[0] * len;
+    }
+    if (ws[WS_VSH1] < 0x23 || ws[WS_VSH1] > 0x4B || ws[WS_VSL] < 0x1A || ws[WS_VSL] > 0x3A) goto bad;
+    if (frames < 200 || frames > 6000) goto bad;
+
+    {
+        // slower particles in the cold: pulses as much longer as the OTP waveform is
+        uint32_t t = ((lut == EPD_LUT_FAST ? 25 : 45) * frames) / WS_FRAMES_ROOM;
+        uint32_t t2 = (20 * frames) / WS_FRAMES_ROOM;
+        if (t > 63) t = 63;
+        if (t2 > 63) t2 = 63;
+        // the fastest is only the pulse; else 4 x 3 frames shake, the pulse, 2 x 2 frames shake and a shorter pulse,
+        // which leaves the least grey and pink where black turns white (tried against an OTP refresh)
+        static const uint8_t rpNormal[4] = {4, 1, 2, 1}, rpFast[4] = {0, 1, 0, 0};
+        const uint8_t *rp = (lut == EPD_LUT_FAST) ? rpFast : rpNormal;
+        const uint8_t tp[4][2] = {{3, 3}, {(uint8_t)t, 0}, {2, 2}, {(uint8_t)t2, 0}};
+        memset(ws, 0, WS_BLOCK * 4);
+        for (uint8_t b = 0; b < 4; b++) {
+            uint8_t *blk = ws + b * WS_BLOCK;
+            for (uint8_t g = 0; g < 8; g++) blk[g * WS_GROUP + 5] = blk[g * WS_GROUP + 6] = 1;
+            for (uint8_t g = 0; g < 4; g++) {
+                if (!rp[g]) continue;
+                blk[g * WS_GROUP] = rp[g];
+                blk[g * WS_GROUP + 1] = tp[g][0];
+                blk[g * WS_GROUP + 2] = tp[g][1];
+            }
+        }
+        // black and white mirror each other: shakes start away from the target, pulses go to it
+        uint8_t *k = ws + WS_BLACK * WS_BLOCK, *w = ws + WS_WHITE * WS_BLOCK;
+        for (uint8_t g = 0; g < 4; g++) {
+            if (!rp[g]) continue;
+            uint8_t *kg = k + g * WS_GROUP, *wg = w + g * WS_GROUP;
+            if (g & 1) {
+                kg[1] = PHASE(V_VSH1, tp[g][0]);
+                wg[1] = PHASE(V_VSL, tp[g][0]);
+            } else {
+                kg[1] = PHASE(V_VSL, tp[g][0]);
+                kg[2] = PHASE(V_VSH1, tp[g][1]);
+                wg[1] = PHASE(V_VSH1, tp[g][0]);
+                wg[2] = PHASE(V_VSL, tp[g][1]);
+            }
+        }
+    }
+    return true;
+bad:
+    printf("EPD: unknown waveform layout, no fast update\n");
+    free(ws);
+    ws = nullptr;
+    return false;
+}
+
+// called before a new image from flash is put in the draw list
+void epdPrepareDiff(uint8_t lut) {
+    if (lut == EPD_LUT_DEFAULT || shownAddr == 0xFFFFFFFF) return;
+    if (epd->controllerType != 0x15 || !tag.thirdColor) return;
+    struct EepromImageHeader eih;
+    eepromRead(shownAddr, &eih, sizeof(eih));
+    if (memcmp(&eih, &shownHeader, sizeof(eih))) return;  // that slot was overwritten
+    ((unissd *)epd)->prepareFast(lut);
+}
+
+void epdImageShown(uint32_t addr) {
+    if (noAPShown || lowBatteryShown) return;  // the image with that over it isn't in flash
+    eepromRead(addr, &shownHeader, sizeof(shownHeader));
+    shownAddr = addr;
+}
+
+void unissd::prepareFast(uint8_t lut) {
+    if (!fastWaveform(lut)) return;
+    if (!drawAddImage(shownAddr)) {
+        free(ws);
+        ws = nullptr;
+        return;
+    }
+    epdWriteDisplayData();  // the image on the screen into the display's memory
+}
+
+void unissd::setRamLine(uint16_t ry) {
+    epdWrite(CMD_XSTART_POS, 1, (this->XOffset / 8));
+    epdWrite(CMD_YSTART_POS, 2, ry & 0xFF, ry >> 8);
+}
+
+// writes the new image over the one in the display's memory: black/white as is, red where red or unchanged.
+// false when red changes; the display's memory is then partly written
+bool unissd::epdWriteFastData() {
+    uint8_t wb = this->effectiveXRes / 8;
+    uint8_t *buf = (uint8_t *)malloc(wb * 4);
+    if (!buf) return false;
+    uint8_t *nbw = buf, *nred = buf + wb, *obw = buf + 2 * wb, *ored = buf + 3 * wb;
+    bool ok = true;
+    for (uint16_t i = 0; i < this->effectiveYRes && ok; i++) {
+        wdt60s();
+        uint16_t y = this->YOffset + i;
+        uint16_t ry = this->epdMirrorV ? y : (this->YOffset + this->effectiveYRes - 1 - i);
+        memset(nbw, 0, wb * 2);
+        drawItem::renderDrawLine(nbw, y, 0);
+        drawItem::renderDrawLine(nred, y, 1);
+        if (this->epdMirrorH) {
+            drawItem::reverseBytes(nbw, wb);
+            drawItem::reverseBytes(nred, wb);
+        }
+        for (uint8_t plane = 0; plane < 2; plane++) {
+            uint8_t *old = plane ? ored : obw;
+            setRamLine(ry);
+            epdWrite(0x41, 1, plane);
+            readBegin(0x27);
+            readBytes(old, 1);  // dummy
+            readBytes(old, wb);
+            readEnd();
+        }
+        for (uint8_t b = 0; b < wb; b++) {
+            if (nred[b] != ored[b]) ok = false;
+            ored[b] = nred[b] | ~(nbw[b] ^ obw[b]);
+        }
+        if (!ok) break;
+        setRamLine(ry);
+        epd_cmd(CMD_WRITE_FB_BW);
+        markData();
+        epdSelect();
+        epdSPIAsyncWrite(nbw, wb);
+        epdSPIWait();
+        epdDeselect();
+        setRamLine(ry);
+        epd_cmd(CMD_WRITE_FB_RED);
+        markData();
+        epdSelect();
+        epdSPIAsyncWrite(ored, wb);
+        epdSPIWait();
+        epdDeselect();
+    }
+    free(buf);
+    return ok;
+}
 
 void unissd::selectLUT(uint8_t lut) {
     // implement alternative LUTs here. Currently just reset the watchdog to two minutes,
@@ -221,8 +452,28 @@ void unissd::drawNoWait() {
 #ifdef DEBUG_EPD
     printf("EPD: Starting to send image data\n");
 #endif
-    epdWriteDisplayData();
-    epdWrite(CMD_DISP_UPDATE_CTRL2, 1, 0xF7);
+    bool fast = false;
+    if (ws) {
+        fast = epdWriteFastData();
+        if (fast) {
+            drawItem::flushDrawItems();
+        } else {
+            printf("EPD: red changed, full refresh\n");
+        }
+    }
+    if (fast) {
+        epd_cmd(CMD_WRITE_LUT);
+        for (uint16_t i = 0; i < WS_LEN; i++) epd_data(ws[i]);
+        epdWrite(CMD_DISP_UPDATE_CTRL2, 1, SCREEN_CMD_REFRESH);
+    } else {
+        epdWriteDisplayData();
+        epdWrite(CMD_DISP_UPDATE_CTRL2, 1, 0xF7);
+    }
+    if (ws) {
+        free(ws);
+        ws = nullptr;
+    }
+    shownAddr = 0xFFFFFFFF;  // set again by epdImageShown() when this is an image from flash
     epdWrite(CMD_ACTIVATION, 0);
 #ifdef DEBUG_EPD
     printf("EPD: Send Data End\n");
