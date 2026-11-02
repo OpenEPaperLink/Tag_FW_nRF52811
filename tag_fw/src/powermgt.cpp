@@ -325,14 +325,7 @@ uint32_t getNextScanSleep(const bool increment) {
         if (scanAttempts < 255)
             scanAttempts++;
     }
-
-    if (scanAttempts < INTERVAL_1_ATTEMPTS) {
-        return INTERVAL_1_TIME;
-    } else if (scanAttempts < (INTERVAL_1_ATTEMPTS + INTERVAL_2_ATTEMPTS)) {
-        return INTERVAL_2_TIME;
-    } else {
-        return INTERVAL_3_TIME;
-    }
+    return INTERVAL_SCAN_TIME;
 }
 
 void addAverageValue() {
