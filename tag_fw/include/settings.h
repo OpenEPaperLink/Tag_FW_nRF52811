@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define FW_VERSION 0x002C        // version number (max 2.5.5 :) )
+#define FW_VERSION 0x002D        // version number (max 2.5.5 :) )
 #define FW_VERSION_SUFFIX "COMPR"  // suffix, like RC1 or whatever.
 #endif
 
