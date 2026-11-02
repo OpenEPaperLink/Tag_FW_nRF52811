@@ -7,6 +7,7 @@
 struct pinWake {
     uint8_t pin;  // nRF pin number
     bool activeHigh;
+    bool waitRelease;  // armed for the inactive level, to be armed again when let go
     void (*handler)();
 };
 
@@ -44,6 +45,7 @@ void pinWakeAttach(uint32_t pin, void (*handler)(), bool activeHigh) {
     }
     pins[c].pin = nrfPin;
     pins[c].activeHigh = activeHigh;
+    pins[c].waitRelease = false;
     pins[c].handler = handler;
     pinWakeArm();
 }
@@ -66,9 +68,10 @@ void pinWakeArm() {
     for (uint8_t c = 0; c < pinCount; c++) {
         uint8_t pin = pins[c].pin;
         bool high = (in >> pin) & 1;
-        // a pin that is still at its active level (a button held down) is armed again later
-        if (high == pins[c].activeHigh) continue;
-        setSense(pin, pins[c].activeHigh ? GPIO_PIN_CNF_SENSE_High : GPIO_PIN_CNF_SENSE_Low);
+        // a pin still at its active level (a button held down) first waits for its release, which arms it again
+        pins[c].waitRelease = (high == pins[c].activeHigh);
+        bool senseHigh = pins[c].waitRelease ? !pins[c].activeHigh : pins[c].activeHigh;
+        setSense(pin, senseHigh ? GPIO_PIN_CNF_SENSE_High : GPIO_PIN_CNF_SENSE_Low);
     }
 }
 
@@ -79,6 +82,12 @@ extern "C" void GPIOTE_IRQHandler(void) {
     for (uint8_t c = 0; c < pinCount; c++) {
         uint8_t pin = pins[c].pin;
         if (!(latch & (1UL << pin))) continue;
+        if (pins[c].waitRelease) {
+            // let go: armed again, without waking anything up
+            pins[c].waitRelease = false;
+            setSense(pin, pins[c].activeHigh ? GPIO_PIN_CNF_SENSE_High : GPIO_PIN_CNF_SENSE_Low);
+            continue;
+        }
         // no more detects until pinWakeArm(), so a pin held at its active level doesn't keep firing
         setSense(pin, GPIO_PIN_CNF_SENSE_Disabled);
         if (pins[c].handler) pins[c].handler();
