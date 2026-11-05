@@ -101,13 +101,13 @@ void setupPortsInitial() {
         case NRF_BOARDTYPE_REGULAR:
             pinMode(BUTTON1, INPUT_PULLUP);
             pinMode(BUTTON2, INPUT_PULLUP);
-            attachInterrupt(digitalPinToInterrupt(BUTTON1), button1wake, FALLING);
-            attachInterrupt(digitalPinToInterrupt(BUTTON2), button2wake, FALLING);
+            pinWakeAttach(BUTTON1, button1wake, false);
+            pinWakeAttach(BUTTON2, button2wake, false);
 
             break;
         case NRF_BOARDTYPE_PEGHOOK:
             pinMode(PEGHOOK_BUTTON, INPUT_PULLUP);
-            attachInterrupt(digitalPinToInterrupt(PEGHOOK_BUTTON), button1wake, FALLING);
+            pinWakeAttach(PEGHOOK_BUTTON, button1wake, false);
             break;
     }
     
@@ -132,10 +132,10 @@ void setupPortsInitial() {
             uint8_t pin = tag.customSetup.buttonPin[i];
             if (mode & (1 << 0)) {
                 pinMode(pin, INPUT_PULLUP);
-                attachInterrupt(digitalPinToInterrupt(pin), buttonHandlers[i], FALLING);
+                pinWakeAttach(pin, buttonHandlers[i], false);
             } else if (mode & (1 << 1)) {
                 pinMode(pin, INPUT_PULLDOWN);
-                attachInterrupt(digitalPinToInterrupt(pin), buttonHandlers[i], RISING);
+                pinWakeAttach(pin, buttonHandlers[i], true);
             }
         }
     }
@@ -181,7 +181,7 @@ void setupPortsInitial() {
     // pinMode(EPD_HLT, OUTPUT);
     // digitalWrite(EPD_HLT, HIGH);
 
-    attachInterrupt(digitalPinToInterrupt(NFC_IRQ), nfcwake, RISING);
+    pinWakeAttach(NFC_IRQ, nfcwake, true);
 }
 
 void initPowerSaving(const uint16_t initialValue) {
@@ -247,7 +247,8 @@ void powerUp(const uint8_t parts) {
         wdt30s();
     }
 
-    if (parts & INIT_EPD) {
+    // without a known display (empty or unknown UICR) the EPD pins are left alone: they may be wired to something else
+    if ((parts & INIT_EPD) && tag.uicrValid) {
         configSPI(true);
         epdConfigGPIO(true);
         epdSetup();
@@ -302,7 +303,7 @@ void powerDown(const uint8_t parts) {
         eepromPrvDeselect();
         configEEPROM(false);
     }
-    if (parts & INIT_EPD) {
+    if ((parts & INIT_EPD) && tag.uicrValid) {
         epdEnterSleep();
         epdConfigGPIO(false);
     }
@@ -324,14 +325,7 @@ uint32_t getNextScanSleep(const bool increment) {
         if (scanAttempts < 255)
             scanAttempts++;
     }
-
-    if (scanAttempts < INTERVAL_1_ATTEMPTS) {
-        return INTERVAL_1_TIME;
-    } else if (scanAttempts < (INTERVAL_1_ATTEMPTS + INTERVAL_2_ATTEMPTS)) {
-        return INTERVAL_2_TIME;
-    } else {
-        return INTERVAL_3_TIME;
-    }
+    return INTERVAL_SCAN_TIME;
 }
 
 void addAverageValue() {

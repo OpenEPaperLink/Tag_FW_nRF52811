@@ -90,6 +90,28 @@ static bool eepromPrvBusyWait(void) {
     return true;
 }
 
+#define EEPROM_ERASE_MAX_MS 5000UL  // a 64K erase takes up to about 2 s
+
+// An erase takes tens of ms up to seconds: sleep between the status reads instead of reading it all that time
+static bool eepromPrvEraseWait(void) {
+    uint32_t start = millis();
+    while (true) {
+        eepromPrvSelect();
+        eepromByte(0x05);
+        bool busy = eepromByte(0x00) & 1;
+        eepromPrvDeselect();
+        if (!busy) return true;
+        if (millis() - start >= EEPROM_ERASE_MAX_MS) {
+            printf("EEPROM: erase timeout\n");
+            return false;
+        }
+        initRTC0(2);
+        __WFE();
+        __SEV();
+        __WFE();
+    }
+}
+
 static bool eepromWriteLL(uint32_t addr, const void *srcP, uint16_t len) {
     const uint8_t *src = (const uint8_t *)srcP;
 
@@ -132,13 +154,9 @@ static void eepromPrvSfdpRead(uint16_t ofst, uint8_t *dst, uint8_t len) {
     eepromPrvDeselect();
 }
 
-boolean eepromInit(void) {
+static boolean eepromPrvParse(void) {
     uint8_t buf[8];
     uint8_t i, nParamHdrs;
-
-    eepromPrvWakeFromPowerdown();
-    delay(1);
-    eepromPrvWakeFromPowerdown();
 
     // process SFDP
 
@@ -276,6 +294,17 @@ boolean eepromInit(void) {
     return false;
 }
 
+// The chip parameters (size, erase opcodes) don't change: read them once, after that only wake the chip up
+boolean eepromInit(void) {
+    static boolean known = false;
+
+    eepromPrvWakeFromPowerdown();
+    delay(1);
+    eepromPrvWakeFromPowerdown();
+    if (!known) known = eepromPrvParse();
+    return known;
+}
+
 bool eepromWrite(uint32_t addr, const void *srcP, uint16_t len) {
     const uint8_t *src = (const uint8_t *)srcP;
 
@@ -324,7 +353,7 @@ bool eepromErase(uint32_t addr, uint16_t nSec) {
         eepromByte(addr);
         eepromPrvDeselect();
 
-        if (!eepromPrvBusyWait())
+        if (!eepromPrvEraseWait())
             return false;
 
         addr += (EEPROM_ERZ_SECTOR_SZ * now);

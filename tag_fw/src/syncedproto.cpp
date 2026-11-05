@@ -40,6 +40,30 @@ void dump(const uint8_t *a, const uint16_t l);
 
 extern void executeCommand(uint8_t cmd);  // this is defined in main.c
 
+// What the bootloader accepts: an application of 8 KB up to the flash above the bootloader, linked at 0x4000
+#define FW_APP_START 0x4000UL
+#define FW_MIN_SIZE 8192UL
+#define FW_MAX_SIZE (196608UL - FW_APP_START)
+#define FW_RAM_START 0x20000000UL
+#define FW_RAM_END 0x20006000UL
+
+static bool fwSizeOk(uint32_t size) {
+    return size >= FW_MIN_SIZE && size <= FW_MAX_SIZE;
+}
+
+// The downloaded file must be an application for this tag. Its vector table holds the initial stack pointer (in
+// RAM) and the reset handler (Thumb, inside the application). The full image with the bootloader in front, or a
+// firmware for another tag, fails that: flashing it would leave a tag that only a flasher can bring back.
+static bool fwImageOk(uint32_t size) {
+    uint32_t vectors[2];
+    eepromRead(FW_LOC, vectors, sizeof(vectors));
+    uint32_t sp = vectors[0], reset = vectors[1];
+    if (sp <= FW_RAM_START || sp > FW_RAM_END || (sp & 3)) return false;
+    if (!(reset & 1)) return false;
+    reset &= ~1UL;
+    return reset >= FW_APP_START && reset < FW_APP_START + size;
+}
+
 static void saveUpdateMetadata(uint32_t size) {
     struct fwmetadata metadata;
     metadata.magic1 = MAGIC1;

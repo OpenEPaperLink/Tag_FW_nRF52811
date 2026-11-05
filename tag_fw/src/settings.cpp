@@ -19,6 +19,12 @@
 
 #define SETTINGS_MAGIC 0xABBA5AA5
 
+// The settings are in the last sector of the external flash. The image slots start at 0, and so does the firmware
+// update, where the bootloader reads it: an update erases images, which the AP sends again, but not the settings.
+static uint32_t settingsAddress() {
+    return eepromGetSize() - EEPROM_ERZ_SECTOR_SZ;
+}
+
 struct tagsettings __xdata tagSettings = {0};
 
 void loadDefaultSettings() {
@@ -56,10 +62,10 @@ static void upgradeSettings() {
 
 void loadSettings() {
     uint8_t settingsTempBuffer[sizeof(struct tagsettings)];
-    eepromRead(EEPROM_SETTINGS_AREA_START+4, (void*)settingsTempBuffer, sizeof(struct tagsettings));
+    eepromRead(settingsAddress()+4, (void*)settingsTempBuffer, sizeof(struct tagsettings));
     memcpy((void*)&tagSettings, (void*)settingsTempBuffer, sizeof(struct tagsettings));
     uint32_t valid = 0;
-    eepromRead(EEPROM_SETTINGS_AREA_START, (void*)&valid, 4);
+    eepromRead(settingsAddress(), (void*)&valid, 4);
     if (tagSettings.settingsVer == 0xFF || valid != SETTINGS_MAGIC) {
         // settings not set. load the defaults
         loadDefaultSettings();
@@ -77,14 +83,14 @@ void loadSettings() {
 }
 
 void writeSettings() {
-    eepromErase(EEPROM_SETTINGS_AREA_START, 1);
+    eepromErase(settingsAddress(), 1);
     uint32_t valid = SETTINGS_MAGIC;
-    eepromWrite(EEPROM_SETTINGS_AREA_START, (void*)&valid, 4);
-    eepromWrite(EEPROM_SETTINGS_AREA_START+4, (void*)&tagSettings, sizeof(tagSettings));
+    eepromWrite(settingsAddress(), (void*)&valid, 4);
+    eepromWrite(settingsAddress()+4, (void*)&tagSettings, sizeof(tagSettings));
     printf("SETTINGS: Updated settings in EEPROM\n");
 }
 
 void invalidateSettingsEEPROM() {
     int32_t __xdata valid = 0x0000;
-    eepromWrite(EEPROM_SETTINGS_AREA_START, (void*)&valid, 4);
+    eepromWrite(settingsAddress(), (void*)&valid, 4);
 }

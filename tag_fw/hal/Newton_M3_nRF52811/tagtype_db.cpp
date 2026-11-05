@@ -185,6 +185,20 @@ void identifyTagInfo() {
                 epd = new epdvarbwry;
             }
             break;
+        default:
+            tag.uicrValid = false;
+            break;
+    }
+    if (epdXRes == 0 || epdYRes == 0 || epdXRes > 2000 || epdYRes > 2000) tag.uicrValid = false;
+    if (!tag.uicrValid) {
+        // an empty or unknown UICR: no display is driven, but the tag starts and stays reachable for the AP
+        printf("UICR empty or unknown (controller %02X, %ux%u): no display\n", controllerType, epdXRes, epdYRes);
+        if (epd != nullptr) delete epd;
+        epd = new epdnone;
+        epdXRes = 0;
+        epdYRes = 0;
+        capabilities[0] = 0;
+        capabilities[1] = 0;
     }
 
     epd->controllerType = controllerType;
@@ -237,6 +251,8 @@ void identifyTagInfo() {
     // we'll calculate image slot size here
     uint32_t imageSize = epd->Xres * epd->Yres / 4;
     tag.imageSize = ((imageSize + EEPROM_ERZ_SECTOR_SZ - 1) / EEPROM_ERZ_SECTOR_SZ) * EEPROM_ERZ_SECTOR_SZ;
+    // images are only acknowledged then, but the slot count must not divide by zero
+    if (!tag.uicrValid) tag.imageSize = EEPROM_ERZ_SECTOR_SZ;
 
     switch (tag.solumType) {
         case STYPE_SIZE_016:

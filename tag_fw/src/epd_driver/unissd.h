@@ -10,8 +10,11 @@ class unissd : public epdInterface {
     void epdWaitRdy();
     void epdWriteDisplayData();
     void selectLUT(uint8_t lut);
+    void prepareFast(uint8_t lut);
 
    protected:
+   bool epdWriteFastData();
+   void setRamLine(uint16_t ry);
    void commandReadBegin(uint8_t cmd);
    void commandReadEnd();
    uint8_t epdReadByte();

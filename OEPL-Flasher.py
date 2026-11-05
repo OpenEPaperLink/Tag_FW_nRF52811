@@ -103,19 +103,30 @@ def wait_for_command_ser():
             print("timeout waiting for reply")
             return None, None
 
+def tcp_recv_exact(length):
+    # recv() can return less than asked for, e.g. when an answer arrives in two TCP segments
+    data = b""
+    while len(data) < length:
+        chunk = tcp_socket.recv(length - len(data))
+        if not chunk:
+            raise ConnectionError("connection closed by the AP")
+        data += chunk
+    return data
+
 def wait_for_command_tcp():
     start_time = time.time()
-    tcp_socket.settimeout(5)
+    # the AP can be busy for a few seconds, e.g. when it reconnects to its radio
+    tcp_socket.settimeout(20)
     while True:
         try:
-            if tcp_socket.recv(2) == b"AT":
+            if tcp_recv_exact(2) == b"AT":
                 # Read the command byte
-                cmd = int.from_bytes(tcp_socket.recv(1), byteorder='big')
+                cmd = int.from_bytes(tcp_recv_exact(1), byteorder='big')
                 data_length = int.from_bytes(
-                    tcp_socket.recv(4), byteorder='big')  # Read the data length
-                data = tcp_socket.recv(data_length)  # Read the data
+                    tcp_recv_exact(4), byteorder='big')  # Read the data length
+                data = tcp_recv_exact(data_length)  # Read the data
                 # Read the CRC value
-                crc = int.from_bytes(tcp_socket.recv(2), byteorder='big')
+                crc = int.from_bytes(tcp_recv_exact(2), byteorder='big')
                 # Verify CRC
                 crc_val = 0xAB34
                 for x in to_byte(cmd, 1) + to_byte(data_length, 4) + data:
@@ -448,8 +459,8 @@ def main():
         if (args.pt or args.command == "debug"):
             send_cmd(CMD_SET_POWER, bytearray([1]))
             cmd, answer = wait_for_command()
-            # enter passthrough mode
-            send_cmd(CMD_PASS_THROUGH, bytearray([]))
+            # enter passthrough mode; 1 tells the AP that an nRF tag sends its debug output on the flasher's TXD line
+            send_cmd(CMD_PASS_THROUGH, bytearray([1]) if args.nrf82511 else bytearray([]))
             print("Now showing debug output from the tag - CTRL+C to quit")
             print(
                 "---------------------------------------------------------------------------------")

@@ -104,60 +104,50 @@ void epdConfigGPIO(bool setup) {
     epdGPIOActive = setup;
 }
 
+#define EPD_BUSY_MAX_MS 180000UL  // a display busy for longer than this is taken as broken
+
 void epd_busy() {
 }
 
-void epdBusyWaitFalling(uint32_t timeout) {
+// Waits until EPD_BUSY is at the 'ready' level. Past the timeout the wait goes on, because some drivers pass a short
+// one and count on that, but only up to EPD_BUSY_MAX_MS: a display that stays busy doesn't keep the tag waiting until
+// the watchdog resets it. The CPU sleeps, woken by the pin or every 100 ms. A refresh takes seconds: the crystal
+// oscillator and the UART are stopped meanwhile, so nothing may be printed until they are back.
+static void epdBusyWait(bool readyHigh, uint32_t timeout) {
     uint32_t start = millis();
+    uint32_t waited = 0;
+    bool timedOut = false;
     wdt120s();
-    attachInterrupt(digitalPinToInterrupt(EPD_BUSY), epd_busy, FALLING);
-    NRF_GPIO->PIN_CNF[EPD_BUSY] &= ~((uint32_t)GPIO_PIN_CNF_SENSE_Msk);
-    NRF_GPIO->PIN_CNF[EPD_BUSY] |= ((uint32_t)GPIO_PIN_CNF_SENSE_Low << GPIO_PIN_CNF_SENSE_Pos);
-    while (millis() - start < timeout) {
+    pinWakeAttach(EPD_BUSY, epd_busy, readyHigh);
+    Serial.end();
+    NRF_CLOCK->TASKS_HFCLKSTOP = 1;
+    while (true) {
+        pinWakeArm();
         initRTC0(100);
         __WFE();
         __SEV();
         __WFE();
-        if (!digitalRead(EPD_BUSY)) {
-            wdt30s();
-            return;
-        }
+        if (digitalRead(EPD_BUSY) == readyHigh) break;
+        waited = millis() - start;
+        if (timeout && waited >= timeout) timedOut = true;
+        if (waited >= EPD_BUSY_MAX_MS) break;
     }
-    printf("screen timeout %lu ms :(\n", millis() - start);
-    while (1) {
-        if (!digitalRead(EPD_BUSY)) {
-            wdt30s();
-            break;
-        }
+    Serial.begin(115200);
+    pinWakeDetach(EPD_BUSY);
+    if (waited >= EPD_BUSY_MAX_MS) {
+        printf("screen still busy after %lu ms, giving up\n", waited);
+    } else if (timedOut) {
+        printf("screen timeout %lu ms :(\n", millis() - start);
     }
+    wdt30s();
+}
+
+void epdBusyWaitFalling(uint32_t timeout) {
+    epdBusyWait(false, timeout);
 }
 
 void epdBusyWaitRising(uint32_t timeout) {
-    uint32_t start = millis();
-    wdt120s();
-    attachInterrupt(digitalPinToInterrupt(EPD_BUSY), epd_busy, RISING);
-    NRF_GPIO->PIN_CNF[EPD_BUSY] &= ~((uint32_t)GPIO_PIN_CNF_SENSE_Msk);
-    NRF_GPIO->PIN_CNF[EPD_BUSY] |= ((uint32_t)GPIO_PIN_CNF_SENSE_High << GPIO_PIN_CNF_SENSE_Pos);
-
-    while (millis() - start < timeout) {
-        initRTC0(100);
-        __WFE();
-        __SEV();
-        __WFE();
-        if (digitalRead(EPD_BUSY)) {
-            wdt30s();
-            digitalPinToInterrupt(EPD_BUSY);
-            return;
-        }
-    }
-    printf("screen timeout %lu ms :(\n", millis() - start);
-    while (1) {
-        if (digitalRead(EPD_BUSY)) {
-            printf("Screen done %lu ms\n", millis() - start);
-            wdt30s();
-            break;
-        }
-    }
+    epdBusyWait(true, timeout);
 }
 
 static uint16_t epdSPIXferBytes;

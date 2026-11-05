@@ -48,7 +48,7 @@
 #define INIT_BASE 0x01
 
 // power saving algorithm
-#define INTERVAL_BASE 40              // interval (in seconds) (when 1 packet is sent/received) for target current (7.2µA)
+#define INTERVAL_BASE 30              // interval (in seconds) (when 1 packet is sent/received)
 #define INTERVAL_AT_MAX_ATTEMPTS 600  // interval (in seconds) (at max attempts) for target average current
 #define DATA_REQ_RX_WINDOW_SIZE 5UL   // How many milliseconds we should wait for a packet during the data_request.
                                       // If the AP holds a long list of data for tags, it may need a little more time to lookup the mac address
@@ -67,11 +67,9 @@
 
 // power saving when no AP's were found (scanning every X)
 #define VOLTAGEREADING_DURING_SCAN_INTERVAL 2  // how often we should read voltages; this is done every scan attempt in interval bracket 3
-#define INTERVAL_1_TIME 3600UL                 // Try every hour
-#define INTERVAL_1_ATTEMPTS 24                 // for 24 attempts (an entire day)
-#define INTERVAL_2_TIME 7200UL                 // Try every 2 hours
-#define INTERVAL_2_ATTEMPTS 12                 // for 12 attempts (an additional day)
-#define INTERVAL_3_TIME 86400UL                // Finally, try every day
+#define INTERVAL_SCAN_TIME 3600UL              // Try every hour
+#define INTERVAL_1_ATTEMPTS 24                 // bracket 1: 24 attempts (an entire day)
+#define INTERVAL_2_ATTEMPTS 12                 // bracket 2: 12 attempts (half a day more), then bracket 3
 
 // slideshow power settings
 #define SLIDESHOW_FORCE_FULL_REFRESH_EVERY 16  // force a full refresh every X screen draws

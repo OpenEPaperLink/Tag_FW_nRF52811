@@ -21,7 +21,18 @@ int8_t commsGetLastPacketRSSI(void) {
     return mLastRSSI;
 }
 
+#define RX_WAIT_TICKS 33  // ~1 ms of the 32768 Hz clock
+
 int8_t commsRxUnencrypted(uint8_t *data) {
+    // The callers poll until a deadline. Instead of spinning, sleep until the radio has a packet (its interrupt
+    // wakes us up) or for at most ~1 ms.
+    if (!radioRxPending()) {
+        initRTC0Ticks(RX_WAIT_TICKS);
+        __WFE();
+        __SEV();
+        __WFE();
+        if (!radioRxPending()) return COMMS_RX_ERR_NO_PACKETS;
+    }
     memset(data, 0, 128);
     int8_t rxedLen = radioRxDequeuePkt(data, 128, &mLastRSSI, &mLastLqi);
     if (rxedLen < 0)

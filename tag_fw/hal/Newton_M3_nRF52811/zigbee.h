@@ -10,5 +10,6 @@ void send_msg(uint8_t dest_address[], uint8_t msg[], int len);
 
 int32_t radioRxDequeuePkt(void *dstBuf, uint32_t maxLen, int8_t *rssiP, uint8_t *lqiP);
 void radioRxFlush(void);
+bool radioRxPending(void);
 bool radioTxLL(const void *pkt);
 bool radioSetChannel(uint_fast8_t channel);

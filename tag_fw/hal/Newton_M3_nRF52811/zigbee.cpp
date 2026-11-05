@@ -69,12 +69,15 @@ void __attribute__((used)) RADIO_IRQHandler(void) {
         ;
 
     crcOk = (NRF_RADIO->CRCSTATUS & RADIO_CRCSTATUS_CRCSTATUS_Msk) == RADIO_CRCSTATUS_CRCSTATUS_CRCOk;
-    rxedPkt[len] = NRF_RADIO->RSSISAMPLE;
+    // a packet with a bad CRC is dropped: the buffer is used again for the next one
+    if (crcOk) {
+        rxedPkt[len] = NRF_RADIO->RSSISAMPLE;
 
-    mRxNumFree--;
-    if (++mRxNextWrite == MAX_RX_PKTS)
-        mRxNextWrite = 0;
-    mRxNumGot++;
+        mRxNumFree--;
+        if (++mRxNextWrite == MAX_RX_PKTS)
+            mRxNextWrite = 0;
+        mRxNumGot++;
+    }
 
     NRF_RADIO->EVENTS_END = 0;
     (void)NRF_RADIO->EVENTS_END;
@@ -98,7 +101,7 @@ static bool radioPrvRxEnable(void)  // knows that radio is in disabled state
 }
 
 bool radioSetChannel(uint_fast8_t channel) {
-    if (channel < 11 || channel > 26)
+    if (channel < 11 || channel > 27)
         return false;
     NRF_RADIO->FREQUENCY = 5 * (channel - 10);
     return true;
@@ -158,6 +161,10 @@ bool radioInit(void) {
     NVIC_EnableIRQ(RADIO_IRQn);
 
     return radioSetChannel(11);
+}
+
+bool radioRxPending(void) {
+    return mRxNumGot != 0;
 }
 
 int32_t radioRxDequeuePkt(void *dstBuf, uint32_t maxLen, int8_t *rssiP, uint8_t *lqiP) {

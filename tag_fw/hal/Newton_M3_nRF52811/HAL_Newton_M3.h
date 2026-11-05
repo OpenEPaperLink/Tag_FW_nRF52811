@@ -1,6 +1,8 @@
 #include "zigbee.h"
 #include "epd_spi.h"
 #include "eeprom_spi.h"
+#include "pinwake.h"
+#include "led.h"
 
 #define RADIO_FIRST_CHANNEL (11)  // 2.4-GHz channels start at 11
 
@@ -60,14 +62,13 @@
 #define DBG_RXD 26
 #define DBG_TEST 27
 
-#define EEPROM_SETTINGS_AREA_START 0
-
 void initRTC0(uint32_t ms);
+void initRTC0Ticks(uint32_t ticks);
 int8_t startHFCLK(void);
 uint8_t isHFCLKstable(void);
 void boardGetOwnMac(uint8_t *mac);
 void sleepForMs(uint32_t ms);
-void setled(uint64_t parta, u_int32_t partb);
+void sleepwithinterrupts(uint32_t sleepinterval);
 void resettimer();
 
 extern uint16_t batteryVoltage;
@@ -125,6 +126,7 @@ struct tagSpecs {
     uint8_t OEPLtype = 0;
     uint8_t solumType = 0;
     uint32_t imageSize = 0;
+    bool uicrValid = true;  // false: empty or unknown UICR, the tag runs without a display
     extraButtons customSetup;
 };
 
